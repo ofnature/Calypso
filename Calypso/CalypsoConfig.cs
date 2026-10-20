@@ -38,6 +38,9 @@ public sealed class CalypsoConfig : IPluginConfiguration
     /// <summary>Where Isle Return put the player last time (the cozy cabin) — learned, the same on every island.</summary>
     public System.Numerics.Vector3? IsleReturnLanding { get; set; }
 
+    /// <summary>Where wild island animals have been seen (learned; the game files don't place them). Global.</summary>
+    public Core.Pasture.AnimalBook AnimalSpots { get; set; } = new();
+
     /// <summary>The profile for this character, created from <see cref="Defaults"/> on first sight.</summary>
     public CharacterProfile ProfileFor(ulong contentId, string displayName, out bool created)
     {
@@ -91,6 +94,9 @@ public sealed class CharacterProfile
     public Gathering.GatherSettings Gathering { get; set; } = new();
 
     public Exports.MarketSettings Market { get; set; } = new();
+
+    /// <summary>The island layout fingerprint Ariadne last recaptured this character's island with (LayoutWatcher).</summary>
+    public string MeshLayout { get; set; } = string.Empty;
 
     /// <summary>This week's observations, production and plan. Never copied between characters.</summary>
     public Core.Workshop.WorkshopWeek WorkshopWeek { get; set; } = new();

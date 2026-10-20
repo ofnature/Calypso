@@ -21,6 +21,13 @@ public sealed unsafe class GatherTools
     private readonly HashSet<uint> _caveItems;
     private readonly Dictionary<uint, int> _stackSize;
     private readonly int _caveProgress;
+    private readonly Dictionary<uint, IReadOnlyCollection<uint>> _sameArea;
+
+    /// <summary>Other island items whose map area (MJIGatheringItem X/Y/Radius) is the same as this one's.</summary>
+    public IReadOnlyCollection<uint> SameArea(uint itemId) => _sameArea.GetValueOrDefault(itemId) ?? Array.Empty<uint>();
+
+    /// <summary>Isleventory cap for an island item (Item.StackSize).</summary>
+    public int StackSize(uint itemId) => _stackSize.GetValueOrDefault(itemId, 999);
 
     public GatherTools(IDataManager data)
     {
@@ -34,6 +41,16 @@ public sealed unsafe class GatherTools
         var items = data.GetExcelSheet<Item>();
         _stackSize = gatherItems.Select(g => g.Item.RowId).Distinct()
             .ToDictionary(id => id, id => (int)Math.Max(1u, items.GetRowOrDefault(id)?.StackSize ?? 999u));
+
+        // MJIGatheringItem X/Y/Radius = the item's area on the island map. Items sharing an area come from a common node
+        // type in the yields learned so far (Palm Leaf + Palm Log at 20,0 → Palm Tree; Branch + Log at 215,82 → Tualong
+        // Tree; Apple + Vine at 194,72 → Island Apple Tree), so Island Limestone (-22,-46, with Island Stone) points at
+        // Smooth White Rock. Only a hint — an item can also drop elsewhere (Mahogany Tree gives Island Log too), and
+        // gathering confirms or corrects it.
+        _sameArea = gatherItems.GroupBy(g => (g.X, g.Y, g.Radius))
+            .SelectMany(a => a.Select(g => (g.Item.RowId, Others: a.Select(o => o.Item.RowId).Where(o => o != g.Item.RowId).ToList())))
+            .GroupBy(x => x.RowId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyCollection<uint>)g.SelectMany(x => x.Others).Distinct().ToList());
 
         _toolForItem = data.GetExcelSheet<MJIGatheringItem>()
             .Where(g => g.Item.RowId != 0)

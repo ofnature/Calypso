@@ -83,6 +83,26 @@ public class TaskRunnerTests
     }
 
     [Fact]
+    public void ACappedTaskIsNamedWhenTheLoopSkipsItAndRunsAgainOnceFailuresAreCleared()
+    {
+        var a = new FakeTask("a") { FailEveryRun = true };
+        var runner = new TaskRunner(new IIslandTask[] { a }, maxFailuresPerCycle: 1);
+        runner.StartLoop(_ => true);
+        Tick(runner, 5);
+
+        // Saar 2026-10-19: "Do my island did nothing" — the tutorial was at the cap and nothing said so.
+        runner.StartLoop(_ => true);
+        Tick(runner, 5);
+        Assert.Equal(1, a.Begins);
+        Assert.Contains("skipped after 1 failures today", runner.LastResult);
+
+        _ledger.ClearFailures(); // what a hand-pressed "Do my island" does first
+        runner.StartLoop(_ => true);
+        Tick(runner, 5);
+        Assert.Equal(2, a.Begins);
+    }
+
+    [Fact]
     public void SucceededTaskIsNotRepeatedInTheSameRunEvenIfCheckStillSaysReady()
     {
         var a = new FakeTask("a"); // State stays Ready forever: a buggy Check

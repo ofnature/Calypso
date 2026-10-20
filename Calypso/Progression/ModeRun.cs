@@ -33,6 +33,12 @@ public sealed class ModeRun
     private DateTime _phaseStart;
     private DateTime _lastRequest;
     private DateTime _lastInteract;
+    private Func<System.Numerics.Vector3?>? _search;
+    private System.Numerics.Vector3? _searchSpot;
+    private DateTime _lastSearchMove;
+    private static readonly TimeSpan SearchLimit = TimeSpan.FromMinutes(10);
+    private readonly HashSet<nint> _unreachable = new();
+    private int _moveTries;
 
     public ModeRun(IslandActions act, IslandTravel travel, IslandData data)
     {
@@ -44,8 +50,15 @@ public sealed class ModeRun
     /// <param name="mode">MJIHudMode sheet row (2 Sow, 3 Water, 8 Capture...) — converted to the game's mode value.</param>
     /// <param name="items">Acceptable mode item ids (any one will do), or empty when the mode takes none.</param>
     /// <param name="isTarget">Which loaded objects to interact with.</param>
-    public void Begin(uint mode, IReadOnlyList<uint> items, Func<IGameObject, bool> isTarget, string what, int progress, DateTime now)
+    /// <param name="search">Where to look next when no target is loaded (null = only what's nearby).</param>
+    public void Begin(uint mode, IReadOnlyList<uint> items, Func<IGameObject, bool> isTarget, string what, int progress, DateTime now,
+        Func<System.Numerics.Vector3?>? search = null)
     {
+        _search = search;
+        _searchSpot = null;
+        _unreachable.Clear();
+        _moveTries = 0;
+        _lastSearchMove = DateTime.MinValue;
         _mode = mode;
         _modeValue = _data.ModeValue(mode);
         _items = items;
@@ -103,17 +116,35 @@ public sealed class ModeRun
 
         if (_target == null || !_target.IsTargetable || !_isTarget(_target))
         {
-            _target = _act.Nearby(_isTarget).OrderBy(o => _act.DistanceTo(o.Position)).FirstOrDefault();
+            _target = _act.Nearby(o => _isTarget(o) && !_unreachable.Contains(o.Address)).OrderBy(o => _act.DistanceTo(o.Position)).FirstOrDefault();
+            _moveTries = 0;
+            // [REPLACED: gave up after 20 s when nothing was loaded nearby — Saar's capture step, 2026-10-19 22:08]
+            // if (_target == null)
+            //     return now - _phaseStart > TimeSpan.FromSeconds(20)
+            //         ? StepResult.Failed($"nothing to {_what} nearby")
+            //         : StepResult.Running($"looking for somewhere to {_what}");
             if (_target == null)
-                return now - _phaseStart > TimeSpan.FromSeconds(20)
-                    ? StepResult.Failed($"nothing to {_what} nearby")
-                    : StepResult.Running($"looking for somewhere to {_what}");
+                return Search(now);
+            _searchSpot = null;
         }
 
         if (_act.DistanceTo(_target.Position) > InteractRange || _travel.IsMoving)
         {
             if (!_travel.IsMoving)
+            {
+                // [REPLACED: re-pathed to the same target forever when the path ended short (a fence, an animal in a pen)]
+                // _travel.MoveCloseTo(_target.Position, InteractRange - 1f);
+                if (++_moveTries > 3)
+                {
+                    _unreachable.Add(_target.Address);
+                    var name = _target.Name.TextValue;
+                    _target = null;
+                    return StepResult.Running($"can't reach {name}, trying another");
+                }
+
                 _travel.MoveCloseTo(_target.Position, InteractRange - 1f);
+            }
+
             return StepResult.Running($"walking to {_target.Name.TextValue}");
         }
 
@@ -127,6 +158,29 @@ public sealed class ModeRun
         _interacts++;
         _lastInteract = now;
         return StepResult.Running($"{_what}: {_target.Name.TextValue}");
+    }
+
+    /// <summary>Nothing loaded nearby: walk to the next place to look, until one turns up or the search runs out.</summary>
+    private StepResult Search(DateTime now)
+    {
+        if (_search == null)
+            return now - _phaseStart > TimeSpan.FromSeconds(20)
+                ? StepResult.Failed($"nothing to {_what} nearby")
+                : StepResult.Running($"looking for somewhere to {_what}");
+        if (now - _phaseStart > SearchLimit)
+            return StepResult.Failed($"searched for {SearchLimit.TotalMinutes:0} minutes and found nothing to {_what}");
+
+        var arrived = _searchSpot is { } at && (_act.DistanceTo(at) < 20f || (!_travel.IsMoving && now - _lastSearchMove > TimeSpan.FromSeconds(5)));
+        if (_searchSpot == null || arrived)
+        {
+            _searchSpot = _search();
+            if (_searchSpot == null)
+                return StepResult.Failed($"looked everywhere and found nothing to {_what}");
+            _lastSearchMove = now;
+            _travel.MoveCloseTo(_searchSpot.Value, 10f);
+        }
+
+        return StepResult.Running($"looking for something to {_what}");
     }
 
     public void Abort()

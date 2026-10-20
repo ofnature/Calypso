@@ -42,6 +42,10 @@ public sealed unsafe class IslandLayout
 
     public IReadOnlyList<RecipeInfo> Recipes => _recipes;
     private readonly List<(int Building, string Name)> _buildings = new();
+    private readonly Dictionary<int, (string TierName, List<(int PouchRow, int Amount)> Materials)> _buildTiers = new();
+
+    /// <summary>Building places (MJIBuildingPlace) with their logboards.</summary>
+    public IReadOnlyList<BuildingPlace> Places { get; }
 
     public IslandLayout(IDataManager data, IPluginLog log)
     {
@@ -181,11 +185,48 @@ public sealed unsafe class IslandLayout
             .Distinct()
             .ToList();
 
-        foreach (var b in data.GetSubrowExcelSheet<MJIBuilding>().SelectMany(s => s).Where(b => b.SubrowId == 0 && b.Name.IsValid))
-            _buildings.Add(((int)b.RowId, b.Name.Value.Text.ExtractText()));
+        // [REPLACED: subrow 0's name only ("Cozy Cabin I") — the objective says "the cozy cabin"; keep the base name,
+        // the first tier's name for the construction window, and its materials]
+        // foreach (var b in data.GetSubrowExcelSheet<MJIBuilding>().SelectMany(s => s).Where(b => b.SubrowId == 0 && b.Name.IsValid))
+        //     _buildings.Add(((int)b.RowId, b.Name.Value.Text.ExtractText()));
+        var cabinSgbs = new HashSet<uint>();
+        foreach (var tiers in data.GetSubrowExcelSheet<MJIBuilding>())
+        {
+            var rows = tiers.Where(t => t.Name.IsValid).OrderBy(t => t.SubrowId).ToList();
+            if (rows.Count == 0)
+                continue;
+            var first = rows[0];
+            var materials = new List<(int, int)>();
+            for (var i = 0; i < first.Material.Count && i < first.Amount.Count; i++)
+            {
+                if (first.Amount[i] > 0)
+                    materials.Add(((int)first.Material[i].RowId, first.Amount[i]));
+            }
 
-        log.Information("Island layout: {0} NPCs, {1} gathering spots, {2} tutorial steps, node EObj ids {3}",
-            Npcs.Count, GatherSpots.Count, Steps.Count, string.Join(",", NodeBaseIds));
+            var name = Construction.BaseName(rows.Select(t => t.Name.Value.Text.ExtractText()).ToList());
+            _buildings.Add(((int)first.RowId, name));
+            _buildTiers[(int)first.RowId] = (first.Name.Value.Text.ExtractText(), materials);
+            if (first.RowId == 0)
+            {
+                foreach (var sgb in first.Sgb)
+                    cabinSgbs.Add(sgb.RowId);
+            }
+        }
+
+        // MJIBuildingPlace: logboard EObj (Name), SGB (the cabin's own SGB marks the cabin place), development level
+        // needed (Unknown3 = byte +0x10, per ClientStructs IslandState.VillageDevelopmentLevel remarks).
+        Places = data.GetExcelSheet<MJIBuildingPlace>()
+            .Where(p => p.RowId > 0 && p.Name.RowId != 0)
+            .Select(p => new BuildingPlace((int)p.RowId, p.Name.RowId, cabinSgbs.Contains(p.SGB.RowId), p.Unknown3))
+            .ToList();
+
+        // [REPLACED: added buildings and places so a live load shows the construction data read right]
+        // log.Information("Island layout: {0} NPCs, {1} gathering spots, {2} tutorial steps, node EObj ids {3}",
+        //     Npcs.Count, GatherSpots.Count, Steps.Count, string.Join(",", NodeBaseIds));
+        log.Information("Island layout: {0} NPCs, {1} gathering spots, {2} tutorial steps, node EObj ids {3}; buildings {4}; places {5}",
+            Npcs.Count, GatherSpots.Count, Steps.Count, string.Join(",", NodeBaseIds),
+            string.Join(", ", _buildings.Select(b => $"{b.Name}/{_buildTiers[b.Building].TierName} ({_buildTiers[b.Building].Materials.Count} mats)")),
+            string.Join(", ", Places.Select(p => $"{p.Row}:{p.Logboard}{(p.ForCabin ? " cabin" : "")} L{p.DevelopmentLevel}")));
     }
 
     public IReadOnlyList<IslandNpc> Npcs { get; }
@@ -281,13 +322,33 @@ public sealed unsafe class IslandLayout
     }
 
     /// <summary>Cabin / workshop / granary names, done when the snapshot shows one built.</summary>
-    public IReadOnlyList<NamedThing> Buildings(IslandSnapshot island) => _buildings.Select(b => new NamedThing(b.Name, b.Building switch
+    // [REPLACED: returned NamedThing with the tier-1 name, which never matched the objective text]
+    // public IReadOnlyList<NamedThing> Buildings(IslandSnapshot island) => _buildings.Select(b => new NamedThing(b.Name, b.Building switch
+    // {
+    //     0 => island.CabinLevel > 0,
+    //     1 => island.Workshops.Any(w => w.IsBuilt),
+    //     2 => island.Granaries.Any(g => g.IsBuilt),
+    //     _ => false,
+    // })).ToList();
+    public IReadOnlyList<Buildable> Buildings(IslandSnapshot island) => _buildings.Select(b => new Buildable(b.Building, b.Name,
+        _buildTiers[b.Building].TierName,
+        b.Building switch
+        {
+            0 => island.CabinLevel > 0,
+            1 => island.Workshops.Any(w => w.IsBuilt),
+            2 => island.Granaries.Any(g => g.IsBuilt),
+            _ => false,
+        },
+        _buildTiers[b.Building].Materials)).ToList();
+
+    /// <summary>Free places for a building, lowest row first: right kind, open at the village's development level, empty.</summary>
+    public IEnumerable<BuildingPlace> FreePlaces(int building, IslandSnapshot island)
     {
-        0 => island.CabinLevel > 0,
-        1 => island.Workshops.Any(w => w.IsBuilt),
-        2 => island.Granaries.Any(g => g.IsBuilt),
-        _ => false,
-    })).ToList();
+        var occupied = island.Workshops.Concat(island.Granaries).Where(b => b.IsBuilt).Select(b => (int)b.PlaceId).ToHashSet();
+        if (island.CabinLevel > 0)
+            occupied.UnionWith(Places.Where(p => p.ForCabin).Select(p => p.Row));
+        return Construction.FreePlaces(Places, building, island.VillageDevelopmentLevel, occupied);
+    }
 
     public ProgressStep? Step(int row) => Steps.TryGetValue(row, out var s) && !string.IsNullOrWhiteSpace(s.Objective) ? s : null;
 }

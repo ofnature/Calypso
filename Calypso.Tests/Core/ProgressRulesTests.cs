@@ -14,10 +14,12 @@ public class ProgressRulesTests
     private static readonly string[] OtherModes = { "Sow", "Water", "Cull", "Feed", "Pet", "Beckon", "Capture" };
     // MJIRecipe row 0: 3 palm leaf (pouch 0), 2 branch (pouch 2), 2 stone (pouch 3).
     private static readonly Craftable Hatchet = new("islekeep's stone hatchet", false, 0, new[] { (0, 3), (2, 2), (3, 2) }, true);
-    private static readonly NamedThing Cabin = new("Cozy Cabin", false);
+    // [REPLACED: buildings are Buildable now (base name + tier name + tier materials)]
+    // private static readonly NamedThing Cabin = new("Cozy Cabin", false);
+    private static readonly Buildable Cabin = new(0, "Cozy Cabin", "Cozy Cabin I", false, new[] { (10, 10), (0, 10) });
 
     private static ProgressAction Decide(ProgressStep step, Func<int, int>? pouch = null,
-        Craftable[]? craftables = null, NamedThing[]? buildings = null) =>
+        Craftable[]? craftables = null, Buildable[]? buildings = null) =>
         ProgressRules.Decide(step, pouch ?? (_ => 0), Npcs, OtherModes, craftables ?? new[] { Hatchet }, buildings ?? new[] { Cabin });
 
     [Fact]
@@ -67,15 +69,40 @@ public class ProgressRulesTests
         Assert.Equal(ProgressActionKind.Blocked, Decide(step, _ => 99, craftables: new[] { feed }).Kind);
     }
 
+    // [REPLACED: construction is automated since probes 10/11 (2026-10-19)]
+    // [Fact]
+    // public void ConstructStepGathersFirstThenBlocks()
+    // {
+    //     var step = new ProgressStep(5, "Construct the cozy cabin after collecting the requisite materials.", new[] { (10, 10) });
+    //
+    //     Assert.Equal(ProgressActionKind.Gather, Decide(step).Kind);
+    //     var blocked = Decide(step, _ => 99);
+    //     Assert.Equal(ProgressActionKind.Blocked, blocked.Kind);
+    //     Assert.Contains("construct", blocked.Reason);
+    // }
+
     [Fact]
-    public void ConstructStepGathersFirstThenBlocks()
+    public void ConstructStepGathersTheBuildingsMaterialsThenConstructs()
     {
+        // The step lists only part of what the building costs: the building's own materials are gathered too.
         var step = new ProgressStep(5, "Construct the cozy cabin after collecting the requisite materials.", new[] { (10, 10) });
 
         Assert.Equal(ProgressActionKind.Gather, Decide(step).Kind);
-        var blocked = Decide(step, _ => 99);
-        Assert.Equal(ProgressActionKind.Blocked, blocked.Kind);
-        Assert.Contains("construct", blocked.Reason);
+        var short_ = Decide(step, row => row == 10 ? 10 : 0);
+        Assert.Equal(ProgressActionKind.Gather, short_.Kind);
+        Assert.Equal(new[] { (0, 10) }, short_.Missing);
+        Assert.Same(Cabin, short_.Build);
+
+        var go = Decide(step, _ => 99);
+        Assert.Equal(ProgressActionKind.Construct, go.Kind);
+        Assert.Equal("Cozy Cabin I", go.Build!.TierName);
+    }
+
+    [Fact]
+    public void ABuiltBuildingIsNotConstructedAgain()
+    {
+        var step = new ProgressStep(5, "Construct the cozy cabin after collecting the requisite materials.", Array.Empty<(int, int)>());
+        Assert.NotEqual(ProgressActionKind.Construct, Decide(step, _ => 99, buildings: new[] { Cabin with { Done = true } }).Kind);
     }
 
     [Fact]
@@ -84,15 +111,15 @@ public class ProgressRulesTests
         var modes = new HudModeNames("Sow", "Water");
         var step = new ProgressStep(10, "With the Sow mode enabled, plant seeds in the cropland.", Array.Empty<(int, int)>());
 
-        var gather = ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<NamedThing>(), modes, (35, false));
+        var gather = ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<Buildable>(), modes, (35, false));
         Assert.Equal(ProgressActionKind.Gather, gather.Kind);
         Assert.Equal(new[] { (35, 1) }, gather.Missing);
 
-        var sow = ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<NamedThing>(), modes, (35, true));
+        var sow = ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<Buildable>(), modes, (35, true));
         Assert.Equal(ProgressActionKind.Sow, sow.Kind);
 
         var water = ProgressRules.Decide(new ProgressStep(11, "With the Water mode enabled, water the seeds you sowed.", Array.Empty<(int, int)>()),
-            _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<NamedThing>(), modes, (35, true));
+            _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<Buildable>(), modes, (35, true));
         Assert.Equal(ProgressActionKind.Water, water.Kind);
     }
 
@@ -112,9 +139,9 @@ public class ProgressRulesTests
         var step = new ProgressStep(18, "With the Feed mode enabled, feed an animal in the pasture.", Array.Empty<(int, int)>());
 
         Assert.Equal(ProgressActionKind.Blocked,
-            ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<NamedThing>(), modes, null, false, haveFeed: false).Kind);
+            ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<Buildable>(), modes, null, false, haveFeed: false).Kind);
         Assert.Equal(ProgressActionKind.Feed,
-            ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<NamedThing>(), modes, null, false, haveFeed: true).Kind);
+            ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<Buildable>(), modes, null, false, haveFeed: true).Kind);
     }
 
     [Fact]
@@ -123,18 +150,18 @@ public class ProgressRulesTests
         var modes = new HudModeNames("Sow", "Water", "Capture");
         var step = new ProgressStep(16, "With the Capture mode enabled, capture a wild animal.", Array.Empty<(int, int)>());
 
-        var none = ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<NamedThing>(), modes, null, haveRestraint: false);
+        var none = ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<Buildable>(), modes, null, haveRestraint: false);
         Assert.Equal(ProgressActionKind.Blocked, none.Kind);
 
         // MJIRecipe row 11: 1 Island Branch (pouch 2), 2 Island Vine (pouch 11).
         var net = new Craftable("Makeshift Net", false, 11, new[] { (2, 1), (11, 2) }, true);
-        var gather = ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<NamedThing>(), modes, null, false, false, net);
+        var gather = ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<Buildable>(), modes, null, false, false, net);
         Assert.Equal(ProgressActionKind.Gather, gather.Kind);
-        var craft = ProgressRules.Decide(step, _ => 5, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<NamedThing>(), modes, null, false, false, net);
+        var craft = ProgressRules.Decide(step, _ => 5, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<Buildable>(), modes, null, false, false, net);
         Assert.Equal(ProgressActionKind.Craft, craft.Kind);
         Assert.Equal(11, craft.Craft!.RecipeRow);
 
-        var go = ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<NamedThing>(), modes, null, haveRestraint: true);
+        var go = ProgressRules.Decide(step, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<Buildable>(), modes, null, haveRestraint: true);
         Assert.Equal(ProgressActionKind.Capture, go.Kind);
     }
 
@@ -152,7 +179,7 @@ public class ProgressRulesTests
     public void UnknownStepsAndTheEndAreReported()
     {
         Assert.Equal(ProgressActionKind.Blocked, Decide(new ProgressStep(31, "Investigate the mossy mountains.", Array.Empty<(int, int)>())).Kind);
-        Assert.Equal(ProgressActionKind.Finished, ProgressRules.Decide(null, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<NamedThing>()).Kind);
+        Assert.Equal(ProgressActionKind.Finished, ProgressRules.Decide(null, _ => 0, Npcs, OtherModes, Array.Empty<Craftable>(), Array.Empty<Buildable>()).Kind);
     }
 
     [Theory]

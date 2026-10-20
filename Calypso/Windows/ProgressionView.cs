@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Calypso.Core;
+using Calypso.Core.Development;
 using Calypso.Core.Progression;
 using Calypso.Core.Tasks;
 using Calypso.Game;
@@ -14,14 +15,17 @@ namespace Calypso.Windows;
 public sealed class ProgressionView
 {
     private readonly ProgressionTask _task;
+    private readonly DevelopTask _develop;
     private readonly IslandLayout _layout;
     private readonly TaskRunner _runner;
     private readonly Func<IslandSnapshot> _island;
     private readonly Core.Workshop.CraftCatalog _catalog;
     private readonly GatherTools _tools;
 
-    public ProgressionView(ProgressionTask task, IslandLayout layout, TaskRunner runner, Func<IslandSnapshot> island, Core.Workshop.CraftCatalog catalog, GatherTools tools)
+    public ProgressionView(ProgressionTask task, DevelopTask develop, IslandLayout layout, TaskRunner runner, Func<IslandSnapshot> island,
+        Core.Workshop.CraftCatalog catalog, GatherTools tools)
     {
+        _develop = develop;
         _tools = tools;
         _catalog = catalog;
         _task = task;
@@ -92,6 +96,8 @@ public sealed class ProgressionView
         foreach (var next in Enumerable.Range(row + 1, 5).Select(_layout.Step).Where(s => s != null))
             ImGui.TextColored(CalypsoTheme.TextSecondary, $"{next!.Row}. {next.Objective}");
 
+        DrawDevelopment(island);
+
         // [REPLACED: bit readings only — the Isleventory Tools tab is the ground truth to compare them with]
         // if (ImGui.CollapsingHeader("Tools (key item readings, unverified bit index)"))
         // {
@@ -103,6 +109,46 @@ public sealed class ProgressionView
             ImGui.TextColored(CalypsoTheme.TextMuted, "Isleventory = ground truth (open the Isleventory once). The bit reading that matches it is the right one.");
             foreach (var (name, pouch, bitRow, bitRowMinusOne) in _tools.Readings())
                 ImGui.TextUnformatted($"{name}: Isleventory {(pouch?.ToString() ?? "not loaded")}, bit=row {bitRow}, bit=row-1 {bitRowMinusOne}");
+        }
+    }
+
+    /// <summary>The development planner's list: what Calypso does, what's by hand, what's waiting.</summary>
+    private void DrawDevelopment(IslandSnapshot island)
+    {
+        CalypsoTheme.Section("Island development");
+        if (!island.Available)
+        {
+            ImGui.TextColored(CalypsoTheme.TextMuted, "No island data.");
+            return;
+        }
+
+        ImGui.TextColored(CalypsoTheme.TextMuted, "After the tutorial: Calypso gathers for these, crafts tools and builds workshops. The rest is by hand until recorded.");
+        using (ImRaii.Disabled(_runner.IsBusy))
+        {
+            if (ImGui.Button("Develop now"))
+                _runner.StartSingle(_develop.Id);
+        }
+
+        var plan = _develop.Plan(island);
+        if (plan.Count == 0)
+        {
+            ImGui.TextColored(CalypsoTheme.TextMuted, "Nothing to develop right now.");
+            return;
+        }
+
+        foreach (var t in plan)
+        {
+            CalypsoTheme.Dot(t.State switch
+            {
+                DevelopmentState.Ready => CalypsoTheme.StatusGreen,
+                DevelopmentState.NeedsMaterials => CalypsoTheme.StatusYellow,
+                DevelopmentState.NeedsRecording => CalypsoTheme.StatusRed,
+                _ => CalypsoTheme.TextMuted,
+            });
+            var missing = t.Missing.Count == 0
+                ? string.Empty
+                : " — short: " + string.Join(", ", t.Missing.Select(m => $"{m.Missing} {(_catalog.Pouch.TryGetValue(m.PouchRow, out var p) ? p.Name : $"#{m.PouchRow}")}"));
+            ImGui.TextWrapped($"{t.Kind}: {t.Name} ({t.Note}){missing}");
         }
     }
 }

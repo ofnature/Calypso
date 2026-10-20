@@ -194,7 +194,15 @@ public sealed class TaskRunner
 
             if (next == null)
             {
-                Finish("Daily loop finished");
+                // [REPLACED: tasks skipped by the failure cap vanished silently — Saar's "Do my island did nothing", 2026-10-19]
+                // Finish("Daily loop finished");
+                var capped = _tasks
+                    .Where(t => _isEnabled(t.Id) && !_succeededThisRun.Contains(t.Id) && context.Ledger.Failures(t.Id) >= _maxFailuresPerCycle)
+                    .Select(t => t.Name)
+                    .ToList();
+                Finish(capped.Count == 0
+                    ? "Daily loop finished"
+                    : $"Daily loop finished — skipped after {_maxFailuresPerCycle} failures today: {string.Join(", ", capped)} (press Do my island to retry)");
                 return false;
             }
         }

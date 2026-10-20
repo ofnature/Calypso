@@ -252,14 +252,26 @@ public sealed unsafe class IslandActions
     }
 
     /// <summary>One of this character's pasture animals (MJIPastureHandler.MJIAnimals EntityIds), not a wild one.</summary>
+    /// <summary>The game's "no object" entity id (GameObject.InvalidGameObjectId).</summary>
+    private const uint NoObjectId = 0xE0000000;
+
     public bool IsPastureAnimal(IGameObject o)
     {
         var mji = MJIManager.Instance();
         if (mji == null || mji->PastureHandler == null)
             return false;
+        // [REPLACED: matched Saar's minion (2026-10-19, "interacting with Wind-up Weapon"): minions carry the game's
+        // "no object" id 0xE0000000, which an empty pasture slot holds too]
+        // foreach (ref var animal in mji->PastureHandler->MJIAnimals)
+        // {
+        //     if (animal.EntityId != 0 && animal.EntityId == o.EntityId)
+        //         return true;
+        // }
+        if (o.ObjectKind != ObjectKind.BattleNpc || o.EntityId is 0 or NoObjectId)
+            return false;
         foreach (ref var animal in mji->PastureHandler->MJIAnimals)
         {
-            if (animal.EntityId != 0 && animal.EntityId == o.EntityId)
+            if (animal.EntityId == o.EntityId)
                 return true;
         }
 
@@ -305,13 +317,49 @@ public sealed unsafe class IslandActions
     }
 
     /// <summary>
+    /// The open window's AtkValues, strings only (null for every other type) — for checking what a menu or window shows
+    /// before clicking it. Empty when it isn't open. Same reading as the probe's.
+    /// </summary>
+    public IReadOnlyList<string?> AddonStrings(string name, int max = 64)
+    {
+        var a = _gameGui.GetAddonByName(name);
+        if (a.IsNull || !a.IsVisible)
+            return Array.Empty<string?>();
+        var unit = (AtkUnitBase*)a.Address;
+        if (unit->AtkValues == null)
+            return Array.Empty<string?>();
+
+        var list = new List<string?>();
+        for (var i = 0; i < unit->AtkValuesCount && i < max; i++)
+        {
+            var v = unit->AtkValues[i];
+            list.Add(v.Type is AtkValueType.String or AtkValueType.ManagedString or AtkValueType.ConstString
+                ? v.String.Value == null ? string.Empty : v.String.ToString()
+                : null);
+        }
+
+        return list;
+    }
+
+    /// <summary>Visible AND set up (AtkUnitBase.IsReady, ClientStructs 78975d8: OnSetup has run).</summary>
+    public bool IsAddonReady(string name)
+    {
+        var a = _gameGui.GetAddonByName(name);
+        return !a.IsNull && a.IsVisible && ((AtkUnitBase*)a.Address)->IsReady;
+    }
+
+    /// <summary>
     /// Fire an addon callback exactly as the probe recorded it: <c>int</c> args become AtkValue Int, <c>uint</c> args
     /// UInt (the craft log's second value is a UInt). False when the addon isn't open.
     /// </summary>
     public bool FireCallback(string addonName, bool close, params object[] args)
     {
         var a = _gameGui.GetAddonByName(addonName);
-        if (a.IsNull)
+        // [REPLACED: fired into windows still being set up — Saar crashed 2026-10-19 21:25 (AddonMJIRecipeNoteBook.OnRefresh
+        // → AtkComponentList.SetItemCount on a null list) when the craft log got a tab click the frame it appeared]
+        // if (a.IsNull)
+        //     return false;
+        if (a.IsNull || !((AtkUnitBase*)a.Address)->IsReady)
             return false;
 
         var values = stackalloc AtkValue[args.Length];

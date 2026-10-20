@@ -86,12 +86,34 @@ public class YieldBookTests
         Assert.Equal(string.Empty, YieldBook.Signature(Array.Empty<int>()));
     }
 
+    // [REPLACED: an empty gather means the bag was full, not that the node gives nothing (Korha 2026-10-19)]
+    // [Fact]
+    // public void EmptyGatherStillCountsAsAVisit()
+    // {
+    //     var book = new YieldBook();
+    //     book.Record("Large Shell", NoTools, new Dictionary<uint, int>());
+    //     Assert.True(book.Known("Large Shell", NoTools));
+    //     Assert.Equal(2, book.Priority("Large Shell", NoTools, new uint[] { 1 }).Tier);
+    // }
+
     [Fact]
-    public void EmptyGatherStillCountsAsAVisit()
+    public void EmptyGatherTeachesNothing()
     {
         var book = new YieldBook();
         book.Record("Large Shell", NoTools, new Dictionary<uint, int>());
-        Assert.True(book.Known("Large Shell", NoTools));
-        Assert.Equal(2, book.Priority("Large Shell", NoTools, new uint[] { 1 }).Tier);
+        Assert.False(book.Known("Large Shell", NoTools));
+        Assert.Equal(0, book.Priority("Large Shell", NoTools, new uint[] { 1 }).Tier); // still untried, item 1 unsourced
+    }
+
+    [Fact]
+    public void EmptyVisitsAlreadyInTheBookDoNotMakeANodeLookTried()
+    {
+        // As Korha's config held them: "Island Apple Tree (1x, hatchet+hammer): nothing" from a full bag.
+        var book = new YieldBook();
+        book.Observed["Island Apple Tree"] = new() { [Scythe] = new NodeObservation { Visits = 1 } };
+        book.Record("Island Apple Tree", NoTools, new Dictionary<uint, int> { [Vine] = 1 });
+
+        Assert.False(book.Known("Island Apple Tree", Scythe));
+        Assert.Equal(new[] { Vine }, book.Gives("Island Apple Tree"));
     }
 }

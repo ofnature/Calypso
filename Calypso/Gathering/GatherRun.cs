@@ -80,11 +80,15 @@ public sealed class GatherRun
 
     private readonly HashSet<int> _dropped = new();
 
+    /// <summary>Node types that gave nothing this run (full bag) — skipped until the next run.</summary>
+    private readonly HashSet<string> _gaveNothing = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Gather until each pouch row reaches its absolute target count (capped at the stack size).</summary>
     public void Begin(IReadOnlyDictionary<int, int> targets, DateTime now)
     {
         _targets.Clear();
         _dropped.Clear();
+        _gaveNothing.Clear();
         _spotChecked.Clear();
         foreach (var (row, n) in targets)
             _targets[row] = Math.Min(n, StackCap);
@@ -162,13 +166,31 @@ public sealed class GatherRun
         var wanted = missing.Select(m => _catalog.Pouch.TryGetValue(m.Row, out var p) ? p.ItemId : 0u).Where(i => i != 0).ToList();
 
         var signature = _tools.Signature();
-        var scored = Candidates(now).Select(o => (o, p: _book.Priority(o.Name.TextValue, signature, wanted))).ToList();
+
+        // Wanted items no node has given yet, and the items sharing their map area: a node known to give one of those
+        // is the likeliest source (Island Limestone → whatever gives Island Stone).
+        var hints = _book.Unsourced(wanted).SelectMany(_tools.SameArea).ToHashSet();
+
+        // [REPLACED: nodes whose every known drop is at its cap were still visited — the game refuses them ("You cannot
+        // carry any more…"), so a search walked from one full node to the next (Korha 2026-10-19)]
+        // var scored = Candidates(now).Select(o => (o, p: _book.Priority(o.Name.TextValue, signature, wanted))).ToList();
+        // A hinted node still gets one try when its known drops are full: whether the game gives the new drop alone
+        // when the old one is capped isn't known yet. A node type that gave nothing is skipped for the rest of the run.
+        var scored = Candidates(now)
+            .Where(o => !_gaveNothing.Contains(o.Name.TextValue))
+            .Select(o => (o, p: _book.Priority(o.Name.TextValue, signature, wanted),
+                hinted: !_book.Known(o.Name.TextValue, signature) && _book.Gives(o.Name.TextValue).Any(hints.Contains)))
+            .Where(x => x.hinted || !AllFull(x.o.Name.TextValue))
+            .ToList();
         if (scored.Any(x => x.p.Tier < 2))
             scored = scored.Where(x => x.p.Tier < 2).ToList(); // known non-producers only when nothing better is loaded
 
-        // Within a tier the nearest node wins: walking dominates a node's yield (1 item per interaction seen so far).
+        // [REPLACED: nearest within a tier, with no use of the sheet's area hint]
+        // var node = scored.OrderBy(x => x.p.Tier).ThenBy(x => _act.DistanceTo(x.o.Position)).Select(x => x.o).FirstOrDefault();
+        // Within a tier: hinted nodes first, then the nearest — walking dominates a node's yield (1 item per interaction).
         var node = scored
             .OrderBy(x => x.p.Tier)
+            .ThenBy(x => x.hinted ? 0 : 1)
             .ThenBy(x => _act.DistanceTo(x.o.Position))
             .Select(x => x.o)
             .FirstOrDefault();
@@ -204,8 +226,13 @@ public sealed class GatherRun
             }
 
             _spotChecked.Clear();
+            // [REPLACED: blamed the island when full bags may have blocked the only source]
+            // if (Missing().All(m => _dropped.Contains(m.Row)))
+            //     return StepResult.Failed("no node on the island gives what's left");
             if (Missing().All(m => _dropped.Contains(m.Row)))
-                return StepResult.Failed("no node on the island gives what's left");
+                return StepResult.Failed(_gaveNothing.Count == 0
+                    ? "no node on the island gives what's left"
+                    : $"no node gave what's left; full bags blocked {string.Join(", ", _gaveNothing)} — sell or use some and try again");
             return StepResult.Running(_dropped.Count > 0 ? $"no node gives {_dropped.Count} item(s); carrying on with the rest" : "sweeping the island again");
         }
 
@@ -215,6 +242,13 @@ public sealed class GatherRun
         _nav.MoveCloseTo(spot.Value, 10f);
         Enter(Phase.Travel, now);
         return StepResult.Running("looking for gathering nodes");
+    }
+
+    /// <summary>Every item this node type is known to give is at its Isleventory cap — the game would refuse it.</summary>
+    private bool AllFull(string node)
+    {
+        var gives = _book.Gives(node).ToList();
+        return gives.Count > 0 && gives.All(i => _count(i) >= _tools.StackSize(i));
     }
 
     private IEnumerable<IGameObject> Candidates(DateTime now) =>
@@ -289,9 +323,15 @@ public sealed class GatherRun
             _lastProgress = now;
             Learned?.Invoke();
         }
+        else
+        {
+            _gaveNothing.Add(_nodeName); // a node always gives something unless its bag is full
+        }
 
         Enter(Phase.Pick, now);
-        return StepResult.Running(gained.Count > 0 ? $"got {gained.Values.Sum()} from {_nodeName}" : $"{_nodeName} gave nothing");
+        // [REPLACED: "gave nothing" hid why]
+        // return StepResult.Running(gained.Count > 0 ? $"got {gained.Values.Sum()} from {_nodeName}" : $"{_nodeName} gave nothing");
+        return StepResult.Running(gained.Count > 0 ? $"got {gained.Values.Sum()} from {_nodeName}" : $"{_nodeName} gave nothing (bag full?) — skipping it this run");
     }
 
     private Dictionary<uint, int> Snapshot() =>

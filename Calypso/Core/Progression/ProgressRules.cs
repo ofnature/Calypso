@@ -46,6 +46,9 @@ public enum ProgressActionKind
     /// <summary>Feed mode + a feed + interact with one of the character's pasture animals (probe 2026-10-17).</summary>
     Feed,
 
+    /// <summary>Construct a building at a free logboard (probes 10 and 11, 2026-10-19); <see cref="ProgressAction.Build"/> says which.</summary>
+    Construct,
+
     /// <summary>Nothing Calypso can do yet; <see cref="ProgressAction.Reason"/> says what the step needs.</summary>
     Blocked,
 
@@ -58,6 +61,9 @@ public sealed record ProgressAction(ProgressActionKind Kind, string Reason, IRea
     /// <summary>For <see cref="ProgressActionKind.Craft"/>: the MJIRecipe row; for a craft's gather: the tool it's for.</summary>
     public Craftable? Craft { get; init; }
 
+    /// <summary>For <see cref="ProgressActionKind.Construct"/> (and the gather before it): the building.</summary>
+    public Buildable? Build { get; init; }
+
     public static ProgressAction Blocked(string reason) => new(ProgressActionKind.Blocked, reason, Array.Empty<(int, int)>(), Array.Empty<IslandNpc>());
 }
 
@@ -69,7 +75,8 @@ public sealed record ProgressAction(ProgressActionKind Kind, string Reason, IRea
 ///    Capture → capture with a held restraint, Feed → feed a pasture animal; the rest (Cull, Pet, Beckon) are blocked;
 /// 3. it names a tool not yet held → gather the recipe's missing materials, then craft it (probe-verified 2026-10-17;
 ///    recipes with a "any produce"-style wildcard stay blocked);
-/// 4. it names a building not yet built → construct it (blocked: construction is not automated yet);
+/// 4. it names a building not yet built → gather its first tier's missing materials, then construct it at a free
+///    logboard (probes 10 and 11, 2026-10-19);
 /// 5. it names an island NPC → talk to them (longest name wins: "mk. II" over "mk. I");
 /// 6. anything else → blocked, quoting the objective.
 /// Names are matched case-insensitively in the client's language, where the objective and the names both come from.
@@ -82,7 +89,9 @@ public static class ProgressRules
         IReadOnlyList<IslandNpc> npcs,
         IReadOnlyList<string> otherHudModes,
         IReadOnlyList<Craftable> craftables,
-        IReadOnlyList<NamedThing> buildings,
+        // [REPLACED: NamedThing carried no tier name or materials]
+        // IReadOnlyList<NamedThing> buildings,
+        IReadOnlyList<Buildable> buildings,
         HudModeNames? modes = null,
         (int PouchRow, bool Have)? seed = null,
         bool haveRestraint = false,
@@ -154,8 +163,20 @@ public static class ProgressRules
                 : new ProgressAction(ProgressActionKind.Craft, $"craft {craft.Name}", Array.Empty<(int, int)>(), Array.Empty<IslandNpc>()) { Craft = craft };
         }
 
-        if (Longest(buildings.Where(b => !b.Done), text) is { } building)
-            return ProgressAction.Blocked($"construct {building.Name} at its logboard — not automated yet (record it once with the probe): \"{text}\"");
+        // [REPLACED: construction blocked until probes 10 (workshop) and 11 (cabin) recorded it — and the names never
+        // matched anyway: the sheet says "Cozy Cabin I", the objective "the cozy cabin"; Buildable.Name is the base name]
+        // if (Longest(buildings.Where(b => !b.Done), text) is { } building)
+        //     return ProgressAction.Blocked($"construct {building.Name} at its logboard — not automated yet (record it once with the probe): \"{text}\"");
+        if (buildings.Where(b => !b.Done && Mentions(text, b.Name)).OrderByDescending(b => b.Name.Length).FirstOrDefault() is { } building)
+        {
+            var buildShort = building.Materials
+                .Select(m => (m.PouchRow, Missing: m.Amount - pouchCount(m.PouchRow)))
+                .Where(m => m.Missing > 0)
+                .ToList();
+            return buildShort.Count > 0
+                ? new ProgressAction(ProgressActionKind.Gather, $"collect materials for {building.TierName}", buildShort, Array.Empty<IslandNpc>()) { Build = building }
+                : new ProgressAction(ProgressActionKind.Construct, $"construct {building.TierName}", Array.Empty<(int, int)>(), Array.Empty<IslandNpc>()) { Build = building };
+        }
 
         var named = npcs.Where(n => Mentions(text, n.Name)).ToList();
         if (named.Count > 0)
@@ -168,8 +189,9 @@ public static class ProgressRules
         return ProgressAction.Blocked($"Calypso does not know how to do this step yet: \"{text}\"");
     }
 
-    private static NamedThing? Longest(IEnumerable<NamedThing> things, string text) =>
-        things.Where(t => Mentions(text, t.Name)).OrderByDescending(t => t.Name.Length).FirstOrDefault();
+    // [REPLACED: its only caller (the building rule) now matches Buildable directly]
+    // private static NamedThing? Longest(IEnumerable<NamedThing> things, string text) =>
+    //     things.Where(t => Mentions(text, t.Name)).OrderByDescending(t => t.Name.Length).FirstOrDefault();
 
     /// <summary>Whole-phrase, case-insensitive: "mk. I" must not match inside "mk. II".</summary>
     public static bool Mentions(string text, string name)

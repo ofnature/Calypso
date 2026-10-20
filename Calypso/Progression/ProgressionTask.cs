@@ -23,6 +23,9 @@ public sealed class ProgressionTask : IIslandTask
     private readonly TalkRun _talk;
     private readonly CraftRun _craft;
     private readonly ModeRun _mode;
+    private readonly ConstructRun _construct;
+    private readonly Core.Pasture.AnimalBook _animals;
+    private readonly List<System.Numerics.Vector3> _searched = new();
     private readonly GatherTools _tools;
     private readonly Func<uint, int> _itemCount;
     private readonly Func<int, uint> _pouchItem;
@@ -31,8 +34,11 @@ public sealed class ProgressionTask : IIslandTask
     private int _advanced;
 
     public ProgressionTask(IslandLayout layout, IslandData data, IslandActions act, GatherRun gather, TalkRun talk, CraftRun craft,
-        ModeRun mode, GatherTools tools, Func<uint, int> itemCount, Func<int, uint> pouchItem)
+        ModeRun mode, GatherTools tools, Func<uint, int> itemCount, Func<int, uint> pouchItem, ConstructRun construct,
+        Core.Pasture.AnimalBook animals)
     {
+        _animals = animals;
+        _construct = construct;
         _mode = mode;
         _tools = tools;
         _craft = craft;
@@ -92,6 +98,25 @@ public sealed class ProgressionTask : IIslandTask
             return false;
         var sizes = HeldRestraints().Select(r => r.Size).ToHashSet();
         return _layout.Animals.Any(a => a.BNpcBase == o.BaseId && a.Rarity == 1 && sizes.Contains(a.Size));
+    }
+
+    /// <summary>
+    /// Where to look for a catchable animal next: spots where one of the species the held restraints can catch has been
+    /// seen (nearest first), then the island's gathering spots — each place once per run.
+    /// </summary>
+    private System.Numerics.Vector3? NextAnimalSpot()
+    {
+        var sizes = HeldRestraints().Select(r => r.Size).ToHashSet();
+        var species = _layout.Animals.Where(a => a.Rarity == 1 && sizes.Contains(a.Size)).Select(a => a.BNpcBase);
+        var next = _animals.SpotsOf(species).Concat(_layout.GatherSpots)
+            .Where(p => !_searched.Any(s => System.Numerics.Vector3.Distance(s, p) < 40f))
+            .OrderBy(p => _animals.SpotsOf(species).Contains(p) ? 0 : 1)
+            .ThenBy(p => _act.DistanceTo(p))
+            .Cast<System.Numerics.Vector3?>()
+            .FirstOrDefault();
+        if (next is { } n)
+            _searched.Add(n);
+        return next;
     }
 
     /// <summary>A seed on hand, else one that can be gathered right now (tool held), else none.</summary>
@@ -162,6 +187,11 @@ public sealed class ProgressionTask : IIslandTask
                 if (sub.Outcome == StepOutcome.Succeeded)
                     _advanced++;
                 break;
+            case ProgressActionKind.Construct:
+                sub = _construct.Step(island, context.UtcNow);
+                if (sub.Outcome == StepOutcome.Succeeded)
+                    _advanced++;
+                break;
             default:
                 return Finish(context);
         }
@@ -173,8 +203,14 @@ public sealed class ProgressionTask : IIslandTask
 
         // Sub-goal done — look at the (possibly new) step and keep going while there's something to do.
         Start(context);
+        // [REPLACED: Construct added to the kinds that keep the run going]
+        // return _current?.Kind is ProgressActionKind.Gather or ProgressActionKind.Talk or ProgressActionKind.Craft
+        //     or ProgressActionKind.Sow or ProgressActionKind.Water or ProgressActionKind.Capture or ProgressActionKind.Feed
+        //     ? StepResult.Running($"step {StepRow(island)}: {_current.Reason}")
+        //     : Finish(context);
         return _current?.Kind is ProgressActionKind.Gather or ProgressActionKind.Talk or ProgressActionKind.Craft
             or ProgressActionKind.Sow or ProgressActionKind.Water or ProgressActionKind.Capture or ProgressActionKind.Feed
+            or ProgressActionKind.Construct
             ? StepResult.Running($"step {StepRow(island)}: {_current.Reason}")
             : Finish(context);
     }
@@ -185,6 +221,7 @@ public sealed class ProgressionTask : IIslandTask
         _talk.Abort();
         _craft.Abort();
         _mode.Abort();
+        _construct.Abort();
     }
 
     private void Start(TaskContext context)
@@ -211,10 +248,16 @@ public sealed class ProgressionTask : IIslandTask
                 break;
             case ProgressActionKind.Capture:
                 var restraints = HeldRestraints().Select(r => r.ItemId).ToList();
-                _mode.Begin(CaptureMode, restraints, IsCatchable, "capture", context.Island.Progress, context.UtcNow);
+                // [REPLACED: only animals already loaded nearby]
+                // _mode.Begin(CaptureMode, restraints, IsCatchable, "capture", context.Island.Progress, context.UtcNow);
+                _searched.Clear();
+                _mode.Begin(CaptureMode, restraints, IsCatchable, "capture", context.Island.Progress, context.UtcNow, NextAnimalSpot);
                 break;
             case ProgressActionKind.Feed:
                 _mode.Begin(FeedMode, HeldFeeds(), _act.IsPastureAnimal, "feed", context.Island.Progress, context.UtcNow);
+                break;
+            case ProgressActionKind.Construct:
+                _construct.Begin(_current.Build!, context.Island, context.UtcNow);
                 break;
         }
     }

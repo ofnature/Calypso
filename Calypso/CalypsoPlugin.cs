@@ -40,6 +40,8 @@ public sealed class CalypsoPlugin : IDalamudPlugin
     private readonly PlayerContext _player;
     private readonly WorkshopService _workshop;
     private readonly Probe _probe;
+    private readonly AnimalSpotter _spotter;
+    private readonly LayoutWatcher _layoutWatcher;
     private readonly MarketPrices _prices;
     private readonly TaskRunner _runner;
     private readonly FleetBoard _fleet = new();
@@ -96,11 +98,17 @@ public sealed class CalypsoPlugin : IDalamudPlugin
             var travel = new IslandTravel(nav, actions, layout, dataManager, () => _config.IsleReturnLanding,
                 landing => { _config.IsleReturnLanding = landing; SaveConfig(); }, log);
             var tools = new GatherTools(dataManager);
+            _layoutWatcher = new LayoutWatcher(pluginInterface, actions, log, SaveConfig);
+            _spotter = new AnimalSpotter(actions, layout, _config.AnimalSpots, SaveConfig);
             var gatherRun = new GatherRun(actions, travel, layout, _workshop.Catalog, _config.GatherYields, _data, tools, actions.ItemCount);
             gatherRun.Learned += SaveConfig;
             uint PouchItem(int row) => _workshop.Catalog.Pouch.TryGetValue(row, out var p) ? p.ItemId : 0;
             var progression = new ProgressionTask(layout, _data, actions, gatherRun, new TalkRun(actions, travel), new CraftRun(actions, layout, actions.ItemCount),
-                new ModeRun(actions, travel, _data), tools, actions.ItemCount, PouchItem);
+                new ModeRun(actions, travel, _data), tools, actions.ItemCount, PouchItem, new ConstructRun(actions, travel, layout),
+                _config.AnimalSpots);
+            var development = new DevelopmentData(dataManager, layout, log);
+            var develop = new DevelopTask(development, progression, layout, gatherRun, new CraftRun(actions, layout, actions.ItemCount),
+                new ConstructRun(actions, travel, layout), row => actions.ItemCount(PouchItem(row)));
             var gatherGoals = new GatherGoalsTask(gatherRun, () => _profile, row => actions.ItemCount(PouchItem(row)));
             // What selling must leave behind: the character's gather goals and the workshop plan's gather targets.
             int Reserved(int pouchRow) => _profile == null ? 0 : Math.Max(
@@ -120,6 +128,7 @@ public sealed class CalypsoPlugin : IDalamudPlugin
             {
                 unlock, // first: Seeking Sanctuary unlocks Island Sanctuary
                 progression,
+                develop, // after the tutorial: builds the island up rank by rank
                 gatherGoals,
                 exportTask,
                 new WorkshopObserveTask(_workshop, () => _profile, () => _cycle),
@@ -135,17 +144,17 @@ public sealed class CalypsoPlugin : IDalamudPlugin
             _ipc = new CalypsoIpc(pluginInterface,
                 () => _runner.IsBusy,
                 () => BuildStatus().ToJson(),
-                StartDailyLoop,
+                () => StartDailyLoop(),
                 RunTask,
                 () => Stop("Stopped via IPC"));
 
             var debug = new DebugView(_data, _player, gameGui, () => _island, _workshop, _probe);
             var workshopView = new WorkshopView(_workshop, _runner, () => _island, () => _profile, () => _cycle, SaveConfig);
-            var progressionView = new ProgressionView(progression, layout, _runner, () => _island, _workshop.Catalog, tools);
+            var progressionView = new ProgressionView(progression, develop, layout, _runner, () => _island, _workshop.Catalog, tools);
             var marketView = new MarketView(exportTask, _runner, cowrieShop, _prices, actions, () => _profile, () => _player.HomeWorld, SaveConfig);
             var gatheringView = new GatheringView(gatherGoals, gatherFill, () => _island, _runner, nav, _workshop.Catalog, layout, _config.GatherYields, actions, tools, () => _profile, SaveConfig);
             _mainWindow = new MainWindow(_config, SaveConfig, _runner, _data, () => _island, () => _profile, () => _cycle,
-                _fleet, StartDailyLoop, () => Stop("Stopped"), SendFleetControl, debug, workshopView, progressionView, gatheringView, marketView);
+                _fleet, () => StartDailyLoop(byHand: true), () => Stop("Stopped"), SendFleetControl, debug, workshopView, progressionView, gatheringView, marketView);
             _overlay = new StatusOverlay(_runner, () => _island, () => _config.ShowStatusOverlay && _player.IsLoggedIn);
             _windowSystem.AddWindow(_mainWindow);
             _windowSystem.AddWindow(_overlay);
@@ -205,6 +214,8 @@ public sealed class CalypsoPlugin : IDalamudPlugin
                 _profile.WorkshopWeek.LastGroove = (int)groove;
 
             _runner.Tick(new TaskContext(_island, _profile.Ledger, now), _player.GlobalBlocker(), framework.UpdateDelta);
+            _spotter.Tick(_island.InSanctuary, now);
+            _layoutWatcher.Tick(_island, _profile, now);
         }
 
         if (!_probeResumeChecked && _player.IsLoggedIn)
@@ -232,11 +243,25 @@ public sealed class CalypsoPlugin : IDalamudPlugin
         return profile;
     }
 
-    private bool StartDailyLoop()
+    // [REPLACED: a hand-pressed start still skipped tasks at today's failure cap, with nothing saying why]
+    // private bool StartDailyLoop()
+    // {
+    //     var profile = _profile;
+    //     if (profile == null)
+    //         return false;
+    //
+    //     return _runner.StartLoop(profile.IsTaskEnabled);
+    // }
+
+    /// <param name="byHand">The player pressed it (button, /calypso start): clear today's failure counts first. Fleet and
+    /// IPC starts keep the cap — they can fire unattended, and a task failing all night shouldn't retry forever.</param>
+    private bool StartDailyLoop(bool byHand = false)
     {
         var profile = _profile;
         if (profile == null)
             return false;
+        if (byHand && !_runner.IsBusy)
+            profile.Ledger.ClearFailures();
 
         return _runner.StartLoop(profile.IsTaskEnabled);
     }
@@ -314,7 +339,7 @@ public sealed class CalypsoPlugin : IDalamudPlugin
         switch (args.Trim().ToLowerInvariant())
         {
             case "start":
-                StartDailyLoop();
+                StartDailyLoop(byHand: true);
                 break;
             case "stop":
                 Stop("Stopped by command");

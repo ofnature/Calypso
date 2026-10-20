@@ -50,6 +50,13 @@ public sealed class CycleLedger
         e.UpdatedUtc = utc;
     }
 
+    /// <summary>Forget today's failure counts (a hand-pressed "Do my island" means "try again"); the last errors stay.</summary>
+    public void ClearFailures()
+    {
+        foreach (var e in Entries.Values)
+            e.Failures = 0;
+    }
+
     private LedgerEntry GetOrAdd(string taskId)
     {
         if (!Entries.TryGetValue(taskId, out var e))

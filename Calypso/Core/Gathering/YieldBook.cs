@@ -60,7 +60,11 @@ public sealed class YieldBook
 
     public void Record(string node, string signature, IReadOnlyDictionary<uint, int> gained)
     {
-        if (string.IsNullOrWhiteSpace(node))
+        // [REPLACED: an empty gather counted as a visit — but a node always gives something unless the bag for it is
+        // full ("You cannot carry any more…", Korha 2026-10-19), so "gave nothing" taught the book a lie]
+        // if (string.IsNullOrWhiteSpace(node))
+        //     return;
+        if (string.IsNullOrWhiteSpace(node) || !gained.Values.Any(n => n > 0))
             return;
 
         var obs = Get(node, signature);
@@ -73,8 +77,15 @@ public sealed class YieldBook
     }
 
     /// <summary>Tried with exactly these tools.</summary>
+    // [REPLACED: visits that gave nothing (full bag, recorded before Record skipped them) made a node look tried]
+    // public bool Known(string node, string signature) =>
+    //     Observed.TryGetValue(node, out var bySig) && bySig.TryGetValue(signature, out var o) && o.Visits > 0;
     public bool Known(string node, string signature) =>
-        Observed.TryGetValue(node, out var bySig) && bySig.TryGetValue(signature, out var o) && o.Visits > 0;
+        Observed.TryGetValue(node, out var bySig) && bySig.TryGetValue(signature, out var o) && o.Visits > 0 && o.Items.Values.Any(n => n > 0);
+
+    /// <summary>Every item this node type has given, under any tools.</summary>
+    public IEnumerable<uint> Gives(string node) =>
+        Observed.TryGetValue(node, out var bySig) ? bySig.Values.SelectMany(o => o.Items.Where(i => i.Value > 0).Select(i => i.Key)).Distinct() : Enumerable.Empty<uint>();
 
     /// <summary>Items per visit for any of <paramref name="wanted"/> under one signature (0 when never seen).</summary>
     public double Rate(string node, string signature, IReadOnlyCollection<uint> wanted)

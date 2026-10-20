@@ -91,7 +91,10 @@ public sealed record IslandSnapshot
 }
 
 /// <summary>A workshop/granary/farm/pasture slot. <see cref="Level"/> is the real level (1-based), 0 = not built.</summary>
-public readonly record struct BuildingState(byte Level, bool UnderConstruction, byte HoursToCompletion)
+// [REPLACED: no place — construction needs to know which MJIBuildingPlace rows are taken]
+// public readonly record struct BuildingState(byte Level, bool UnderConstruction, byte HoursToCompletion)
+/// <summary>PlaceId = the MJIBuildingPlace row it stands on (workshops/granaries; 0 otherwise).</summary>
+public readonly record struct BuildingState(byte Level, bool UnderConstruction, byte HoursToCompletion, byte PlaceId = 0)
 {
     public bool IsBuilt => Level > 0;
 }

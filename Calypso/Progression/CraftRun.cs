@@ -26,6 +26,10 @@ public sealed class CraftRun
     private const int CraftSelected = 14;
     private const int SelectTab = 11;
     private const int SelectRecipe = 12;
+    private static readonly TimeSpan SettleTime = TimeSpan.FromSeconds(1.5);
+    private static readonly TimeSpan ClickGap = TimeSpan.FromSeconds(1);
+    private DateTime? _readySince;
+    private DateTime _lastClose;
 
     private readonly IslandActions _act;
     private readonly IslandLayout _layout;
@@ -63,14 +67,33 @@ public sealed class CraftRun
         _fired = false;
         _phaseStart = now;
         _lastOpen = DateTime.MinValue;
+        _readySince = null;
+        _lastClose = DateTime.MinValue;
     }
 
     public StepResult Step(DateTime now)
     {
-        if (_keyItemRow > 0 && _layout.HasKeyItem(_keyItemRow))
-            return StepResult.Succeeded($"crafted {_name}");
-        if (_keyItemRow == 0 && _outputItem != 0 && _fired && _itemCount(_outputItem) > _countBefore)
-            return StepResult.Succeeded($"crafted {_name}");
+        // [REPLACED: succeeded with the craft log still open — Saar's next step (report to the furball) then talked
+        // through an open log and the step didn't advance (2026-10-19 21:35). Close it first, as the player did.]
+        // if (_keyItemRow > 0 && _layout.HasKeyItem(_keyItemRow))
+        //     return StepResult.Succeeded($"crafted {_name}");
+        // if (_keyItemRow == 0 && _outputItem != 0 && _fired && _itemCount(_outputItem) > _countBefore)
+        //     return StepResult.Succeeded($"crafted {_name}");
+        if ((_keyItemRow > 0 && _layout.HasKeyItem(_keyItemRow)) || (_keyItemRow == 0 && _outputItem != 0 && _fired && _itemCount(_outputItem) > _countBefore))
+        {
+            if (_act.IsAddonVisible(CraftLog))
+            {
+                if (!_act.Busy && now - _lastClose > TimeSpan.FromSeconds(1))
+                {
+                    _lastClose = now;
+                    _act.CloseAddon(CraftLog);
+                }
+
+                return StepResult.Running($"crafted {_name}; closing the craft log");
+            }
+
+            return _act.Busy ? StepResult.Running($"crafted {_name}") : StepResult.Succeeded($"crafted {_name}");
+        }
 
         if (!_fired)
         {
@@ -90,10 +113,25 @@ public sealed class CraftRun
             if (_act.Busy)
                 return StepResult.Running("waiting to craft");
 
+            // The log fires its own setup callback [i:21] as it opens; the player's first click came 1.4–2 s after it
+            // appeared (probes 8, 9). Clicking a tab the frame it became visible crashed Saar (2026-10-19, OnRefresh on a
+            // list not built yet): wait until it is set up, then let it settle.
+            if (!_act.IsAddonReady(CraftLog))
+            {
+                _readySince = null;
+                return StepResult.Running("waiting for the craft log");
+            }
+
+            _readySince ??= now;
+            if (now - _readySince.Value < SettleTime)
+                return StepResult.Running("waiting for the craft log");
+
+            // [REPLACED: half a second apart was faster than any recorded click (1.5–3.4 s apart)]
             // Pick the tab, then the recipe, half a second apart, as the player's clicks were.
+            // Pick the tab, then the recipe, a second apart.
             if (_selectStage < 2)
             {
-                if (now - _lastSelect < TimeSpan.FromMilliseconds(500))
+                if (now - _lastSelect < ClickGap)
                     return StepResult.Running($"choosing {_name}");
                 if (_layout.CraftLogEntry(_recipeRow) is not { } entry)
                     return StepResult.Failed($"{_name} isn't in the craft log (recipe not unlocked?)");
@@ -103,7 +141,7 @@ public sealed class CraftRun
                 return StepResult.Running($"choosing {_name}");
             }
 
-            if (now - _lastSelect < TimeSpan.FromMilliseconds(500))
+            if (now - _lastSelect < ClickGap)
                 return StepResult.Running($"choosing {_name}");
 
             // [REPLACED: u was assumed to be recipe row + 1; it is the quantity to craft]

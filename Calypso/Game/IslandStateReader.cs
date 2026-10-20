@@ -22,6 +22,49 @@ public sealed unsafe class IslandStateReader
         _data = data;
     }
 
+    // IslandState offsets of MJIWorkshops / MJIGranaries (ClientStructs 78975d8: 0xA8, 0xC8 — the struct offsets are right,
+    // the fields inside are not; see ReadBuildings).
+    private const int WorkshopsOffset = 0xA8;
+    private const int GranariesOffset = 0xC8;
+
+    /// <summary>
+    /// The real MJIWorkshops/MJIGranaries layout (raw dump 2026-10-19): an 8-byte pointer, then five byte arrays of
+    /// <paramref name="count"/> — PlaceId, GlamourLevel, HoursToCompletion, BuildingLevel, UnderConstruction. That fills
+    /// the struct's declared size exactly (0x08 + 5 × count) and keeps the granaries (0xC8) and CabinLevel (0xE0) clear.
+    /// </summary>
+    private static BuildingState[] ReadBuildings(byte* fields, int count)
+    {
+        var result = new BuildingState[count];
+        for (var i = 0; i < count; i++)
+        {
+            result[i] = DecodeBuilding(fields[i], fields[3 * count + i], fields[4 * count + i] != 0, fields[2 * count + i]);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// IslandState bytes 0x81–0xE1 in hex (farm/pasture, landmarks, workshops, granaries, cabin), for checking the
+    /// MJIWorkshops layout: ClientStructs declares it Size 0x08 + 5×4 with only 20 bytes of fields ("TODO: make layout
+    /// explicit"), and Saar's island read as having a workshop it doesn't have (2026-10-19).
+    /// </summary>
+    public static string RawBuildingBytes()
+    {
+        var mji = MJIManager.Instance();
+        if (mji == null)
+            return "(no MJIManager)";
+        var p = (byte*)&mji->IslandState;
+        var sb = new System.Text.StringBuilder();
+        for (var off = 0x80; off <= 0xE1; off += 0x10)
+        {
+            sb.Append($" {off:X2}:");
+            for (var i = off; i < off + 0x10 && i <= 0xE1; i++)
+                sb.Append($" {p[i]:X2}");
+        }
+
+        return sb.ToString();
+    }
+
     public IslandSnapshot Read()
     {
         var mji = MJIManager.Instance();
@@ -34,19 +77,25 @@ public sealed unsafe class IslandStateReader
         for (var i = 0; i < functions.Length && i <= byte.MaxValue; i++)
             functions[i] = mji->IsFunctionUnlocked((byte)i);
 
-        var workshops = new BuildingState[4];
-        for (var i = 0; i < workshops.Length; i++)
-        {
-            var w = island.Workshops[i];
-            workshops[i] = DecodeBuilding(w.PlaceId, w.BuildingLevel, w.UnderConstruction, w.HoursToCompletion);
-        }
-
-        var granaries = new BuildingState[2];
-        for (var i = 0; i < granaries.Length; i++)
-        {
-            var g = island.Granaries[i];
-            granaries[i] = DecodeBuilding(g.PlaceId, g.BuildingLevel, g.UnderConstruction, g.HoursToCompletion);
-        }
+        // [REPLACED: ClientStructs' MJIWorkshops/MJIGranaries put the fields at +0, but the first 8 bytes are a pointer —
+        // Saar's island (no workshop) read 0xA8 = 58 1D 7E 22 F7 7F 00 00 and showed four "workshops" on places
+        // 88/29/126/34 (raw dump 2026-10-19 22:42). Fields start at +8: see ReadBuildings.]
+        // var workshops = new BuildingState[4];
+        // for (var i = 0; i < workshops.Length; i++)
+        // {
+        //     var w = island.Workshops[i];
+        //     workshops[i] = DecodeBuilding(w.PlaceId, w.BuildingLevel, w.UnderConstruction, w.HoursToCompletion);
+        // }
+        //
+        // var granaries = new BuildingState[2];
+        // for (var i = 0; i < granaries.Length; i++)
+        // {
+        //     var g = island.Granaries[i];
+        //     granaries[i] = DecodeBuilding(g.PlaceId, g.BuildingLevel, g.UnderConstruction, g.HoursToCompletion);
+        // }
+        var raw = (byte*)&mji->IslandState;
+        var workshops = ReadBuildings(raw + WorkshopsOffset + 8, 4);
+        var granaries = ReadBuildings(raw + GranariesOffset + 8, 2);
 
         return new IslandSnapshot
         {
@@ -85,7 +134,7 @@ public sealed unsafe class IslandStateReader
     internal static BuildingState DecodeBuilding(byte placeId, byte storedLevel, bool underConstruction, byte hoursToCompletion) =>
         placeId == 0
             ? default
-            : new BuildingState((byte)(storedLevel + 1), underConstruction, hoursToCompletion);
+            : new BuildingState((byte)(storedLevel + 1), underConstruction, hoursToCompletion, placeId);
 
     private static uint? ReadScheduleGroove()
     {
