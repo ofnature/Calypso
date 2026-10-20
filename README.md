@@ -46,3 +46,7 @@ every construction your rank allows out of the plan. Paste a community schedule 
 
 `dotnet build Calypso.sln` with the Dalamud dev hooks installed (`%AppData%\XIVLauncher\addon\Hooks\dev`), then add
 `Calypso\bin\Debug\Calypso.dll` as a dev plugin.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).

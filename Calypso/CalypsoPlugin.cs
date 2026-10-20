@@ -19,7 +19,9 @@ namespace Calypso;
 
 public sealed class CalypsoPlugin : IDalamudPlugin
 {
-    public const string PluginVersion = "0.0.1";
+    // [REPLACED: a second copy of the version that had to be bumped by hand beside the csproj; read it off the assembly like Ariadne]
+    // public const string PluginVersion = "0.0.1";
+    public static readonly string PluginVersion = typeof(CalypsoPlugin).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
     private const string CommandName = "/calypso";
 
     /// <summary>Short alias, matching the suite (/daedalus → /dae, /charon → /cha). FFXIV does not prefix-match commands.</summary>

@@ -5,6 +5,13 @@
     <RootNamespace>Calypso</RootNamespace>
     <Version>0.0.1</Version>
     <DalamudLibPath>$(AppData)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+
+    <!--
+      Pin the output directory (as Odysseus/Ariadne). The solution declares x64, so a solution build would land in
+      bin/x64/<Config>/ while Dalamud's dev-plugin entry loads bin\Debug\Calypso.dll — a stale DLL that looks like a
+      change having no effect. The release zip is bin/Release/Calypso/latest.zip.
+    -->
+    <OutputPath>$(MSBuildProjectDirectory)\bin\$(Configuration)\</OutputPath>
   </PropertyGroup>
 
   <!-- Allow the test assembly to access internal types -->
@@ -18,6 +25,11 @@
     Dev-plugin reload race (same fix as Charon): Dalamud reloads the moment the DLL changes and then
     reads Calypso.json, which DalamudPackager writes a few seconds AFTER the DLL. Touching the DLL after
     packaging makes it the last file to change, so the reload always finds a complete manifest.
+
+    [NOTE: this does NOT fire as intended — verified 2026-10-19 with -v:d: MSBuild reports both AfterTargets
+    "does not exist in the project, and will be ignored" (the packager's targets import after the csproj), so the
+    touch runs before packaging and Calypso.json still lands ~0.15 s after the DLL. Kept, harmless. The working fix
+    is a $(ProjectDir)DalamudPackager.targets, deliberately not done (see Ariadne RELEASING.md).]
   -->
   <Target Name="TouchAssemblyAfterPackaging"
           AfterTargets="DefaultDalamudPackagerDebug;DefaultDalamudPackagerRelease">

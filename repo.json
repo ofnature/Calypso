@@ -1,0 +1,28 @@
+[
+  {
+    "Author": "ofnature",
+    "Name": "Calypso",
+    "InternalName": "Calypso",
+    "Punchline": "Island Sanctuary automation: workshop, gathering, pasture, cropland, granary and exports.",
+    "Description": "Runs your Island Sanctuary unattended: workshop agenda solver, gathering, pasture, cropland, granary and exports, gated on island rank. Part of the Daedalus suite.",
+    "ApplicableVersion": "any",
+    "CategoryTags": [
+      "utility"
+    ],
+    "Tags": [
+      "utility",
+      "multibox",
+      "island sanctuary"
+    ],
+    "RepoUrl": "https://github.com/ofnature/Calypso",
+    "AssemblyVersion": "0.0.1.0",
+    "DalamudApiLevel": 15,
+    "IconUrl": "https://raw.githubusercontent.com/ofnature/Calypso/main/images/icon.png",
+    "ImageUrls": [],
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "DownloadLinkInstall": "https://github.com/ofnature/Calypso/releases/latest/download/latest.zip",
+    "DownloadLinkTesting": "https://github.com/ofnature/Calypso/releases/latest/download/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/ofnature/Calypso/releases/latest/download/latest.zip"
+  }
+]
