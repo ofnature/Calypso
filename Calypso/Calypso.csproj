@@ -1,0 +1,27 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+
+  <PropertyGroup>
+    <AssemblyName>Calypso</AssemblyName>
+    <RootNamespace>Calypso</RootNamespace>
+    <Version>0.0.1</Version>
+    <DalamudLibPath>$(AppData)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+  </PropertyGroup>
+
+  <!-- Allow the test assembly to access internal types -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>Calypso.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!--
+    Dev-plugin reload race (same fix as Charon): Dalamud reloads the moment the DLL changes and then
+    reads Calypso.json, which DalamudPackager writes a few seconds AFTER the DLL. Touching the DLL after
+    packaging makes it the last file to change, so the reload always finds a complete manifest.
+  -->
+  <Target Name="TouchAssemblyAfterPackaging"
+          AfterTargets="DefaultDalamudPackagerDebug;DefaultDalamudPackagerRelease">
+    <Touch Files="$(TargetPath)" />
+  </Target>
+
+</Project>

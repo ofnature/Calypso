@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+
+# Markdown stays local — only the README is pushed (suite convention, see Olympus/Daedalus).
+# claude-memory.md, plans and notes live here unversioned.
+*.md
+!/README.md
