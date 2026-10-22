@@ -20,7 +20,7 @@
     "IconUrl": "https://raw.githubusercontent.com/ofnature/Calypso/main/images/icon.png",
     "ImageUrls": [],
     "IsHide": false,
-    "IsTestingExclusive": false,
+    "IsTestingExclusive": true,
     "DownloadLinkInstall": "https://github.com/ofnature/Calypso/releases/latest/download/latest.zip",
     "DownloadLinkTesting": "https://github.com/ofnature/Calypso/releases/latest/download/latest.zip",
     "DownloadLinkUpdate": "https://github.com/ofnature/Calypso/releases/latest/download/latest.zip"
