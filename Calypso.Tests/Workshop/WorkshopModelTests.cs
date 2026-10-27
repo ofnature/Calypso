@@ -42,6 +42,22 @@ public class WorkshopModelTests
     }
 
     [Fact]
+    public void BucketWeightsAverageToTheExpectedRatio()
+    {
+        // The evaluator averages truncated sales over these weights; their mean ratio must be the same model.
+        for (var bucket = Supply.Nonexistent; bucket <= Supply.Overflowing; bucket++)
+        {
+            for (var produced = 0; produced <= 40; produced++)
+            {
+                var w = new double[5];
+                SupplyMath.AddBucketWeights(w, bucket, produced, 1.0);
+                Assert.Equal(1.0, w.Sum(), 9);
+                Assert.Equal(SupplyMath.ExpectedRatio(SupplyRatio, bucket, produced), w.Select((p, b) => p * SupplyRatio[b]).Sum(), 9);
+            }
+        }
+    }
+
+    [Fact]
     public void PackedSupplyAndDemandUnpack()
     {
         Assert.Equal((Supply.Insufficient, DemandShift.Plummeting), SupplyMath.Unpack(0x14));

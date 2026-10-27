@@ -104,6 +104,28 @@ public sealed class SupplyForecast
         return sum;
     }
 
+    /// <summary>
+    /// Probability of each supply bucket (index = <see cref="Supply"/>) for a sale on <paramref name="day"/>, under the
+    /// same rules as <see cref="ExpectedRatio"/> (whose value is the mean ratio of this distribution).
+    /// </summary>
+    public void SupplyWeights(int craftId, int day, int producedBeforeDay, int producedEarlierToday, Span<double> weights)
+    {
+        weights.Clear();
+        if (craftId < 0 || craftId > _maxCraftId || day < 0 || day >= Days)
+        {
+            weights[(int)Supply.Sufficient] = 1;
+            return;
+        }
+
+        var extra = producedEarlierToday + (_observed[craftId][day] ? 0 : producedBeforeDay);
+        var dist = _dist[craftId][day];
+        for (var b = 0; b < Buckets; b++)
+        {
+            if (dist[b] > 0)
+                SupplyMath.AddBucketWeights(weights, (Supply)b, extra, dist[b]);
+        }
+    }
+
     private static int ProducedBefore(IReadOnlyList<int[]?> producedOnDay, int craft, int day)
     {
         var n = 0;

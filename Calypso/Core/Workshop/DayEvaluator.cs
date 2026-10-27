@@ -6,11 +6,11 @@ namespace Calypso.Core.Workshop;
 /// <summary>
 /// Simulates one cycle of up to four workshops hour by hour.
 ///
-/// Per craft (Squawkbot's published formula, integers where the game truncates):
-///   base  = floor(BaseValue × tier% / 100 × (100 + groove) / 100)
-///   value = base × popularity% / 100 × E[supply%] / 100 × items
-/// where items = 1 for a chain's first craft and 2 for every efficient craft after it. The supply step stays a
-/// real-valued expectation because the bucket itself is a forecast.
+/// Per craft (see <see cref="CraftValue"/>; the game truncates twice, in 32-bit float):
+///   base  = floor(BaseValue × tier × groove)
+///   value = floor(base × popularity% × supply% / 10000) × items
+/// where items = 1 for a chain's first craft and 2 for every efficient craft after it. The supply bucket is a forecast,
+/// so a sale is the expectation of that whole-cowrie value over the buckets it may land in.
 ///
 /// Crafts finishing in the same hour are valued against the same state; then their items are added to that day's
 /// supply and each efficient one raises groove by 1 (capped). This matches WorkshopOptimizer's hour loop.
@@ -25,12 +25,16 @@ public sealed class DayEvaluator
     // Reused per call: (hour, workshop, step, craft) of every finishing craft.
     private readonly List<(int Hour, int Workshop, int Step, int Craft)> _events = new(24);
 
+    // Reused per craft: probability of selling at each supply bucket.
+    private readonly double[] _supplyWeights;
+
     public DayEvaluator(CraftCatalog catalog, SupplyForecast forecast, int popularityRow, int maxGroove)
     {
         _catalog = catalog;
         _forecast = forecast;
         _popularityRow = popularityRow;
         _maxGroove = maxGroove;
+        _supplyWeights = new double[catalog.Rules.SupplyRatio.Length];
     }
 
     public int MaxGroove => _maxGroove;
@@ -78,9 +82,17 @@ public sealed class DayEvaluator
                 var ev = _events[e];
                 var craft = _catalog.Get(ev.Craft)!;
                 var items = ev.Step == 0 ? 1 : 2;
-                var baseValue = (int)(craft.BaseValue * _catalog.Rules.TierRatio(tiers[ev.Workshop]) / 100.0 * (100 + groove) / 100.0);
-                var supply = _forecast.ExpectedRatio(ev.Craft, day, producedBefore[ev.Craft], producedToday[ev.Craft]);
-                value += baseValue * _catalog.Rules.PopularityRatio(_popularityRow, ev.Craft) / 100.0 * supply / 100.0 * items;
+                var grooveBase = GrooveBase(craft.BaseValue, _catalog.Rules.TierRatio(tiers[ev.Workshop]), groove);
+                var popularity = _catalog.Rules.PopularityRatio(_popularityRow, ev.Craft);
+                _forecast.SupplyWeights(ev.Craft, day, producedBefore[ev.Craft], producedToday[ev.Craft], _supplyWeights);
+                var sale = 0.0;
+                for (var b = 0; b < _supplyWeights.Length; b++)
+                {
+                    if (_supplyWeights[b] > 0)
+                        sale += _supplyWeights[b] * Sale(grooveBase, popularity, _catalog.Rules.SupplyRatio[b]);
+                }
+
+                value += sale * items;
             }
 
             for (var e = i; e < end; e++)
@@ -97,10 +109,21 @@ public sealed class DayEvaluator
         return (value, groove);
     }
 
-    /// <summary>The value of one craft in isolation — the formula above with a known supply ratio. For tests and the UI.</summary>
-    public static int CraftValue(int baseValue, int tierRatio, int groove, int popularityRatio, int supplyRatio, bool efficient)
-    {
-        var b = (int)(baseValue * tierRatio / 100.0 * (100 + groove) / 100.0);
-        return (int)(b * popularityRatio / 100.0 * supplyRatio / 100.0) * (efficient ? 2 : 1);
-    }
+    /// <summary>
+    /// The value of one craft in isolation with a known supply ratio. For tests and the UI.
+    ///
+    /// The game computes in 32-bit float: floor(floor(base × (1 + rank bonus) × (1 + groove/100)) × (popularity% ×
+    /// supply%)/10000). Exact integer arithmetic differs at the edges: base 136, tier IV, groove 25 is 221.0 exactly but
+    /// 220.99998 in float, so a Nonexistent/High sale pays 422, not 424. The float form and its order are the ones
+    /// mji-craftwork settled on from in-game measurements (see ReferenceTests).
+    /// </summary>
+    public static int CraftValue(int baseValue, int tierRatio, int groove, int popularityRatio, int supplyRatio, bool efficient) =>
+        Sale(GrooveBase(baseValue, tierRatio, groove), popularityRatio, supplyRatio) * (efficient ? 2 : 1);
+
+    // The (float) casts pin every product to single precision, so no wider intermediate can change a truncation.
+    private static float GrooveBase(int baseValue, int tierRatio, int groove) =>
+        tierRatio <= 0 ? 0 : MathF.Floor((float)((float)(baseValue * (1f + (tierRatio - 100) * 0.01f)) * (1f + groove * 0.01f)));
+
+    private static int Sale(float grooveBase, int popularityRatio, int supplyRatio) =>
+        (int)MathF.Floor((float)(grooveBase * (float)(popularityRatio * supplyRatio / 10000f)));
 }
