@@ -1,5 +1,6 @@
 // The supply/demand pattern table below is ported from WorkshopOptimizerPlugin
 // (https://github.com/belzaru17/WorkshopOptimizerPlugin, Data/SupplyDemandPattern.cs).
+// Changed here: the cycle-2 patterns' first-day demand shift (see FirstDayDemandNever).
 //
 // MIT License — Copyright (c) 2022 belzaru17
 //
@@ -24,9 +25,10 @@ namespace Calypso.Core.Workshop;
 /// <summary>
 /// One weekly peak shape: on which day an item peaks (0-based, so "C2" is day 1), whether strongly, and the natural
 /// supply bucket and demand shift it shows each day — before anyone's own production moves it.
-/// A null demand entry matches anything.
+/// A null demand entry matches anything. <paramref name="FirstDayDemandNever"/> is the one first-day shift that rules
+/// the pattern out.
 /// </summary>
-public sealed record PeakPattern(int PeakDay, bool Strong, Supply[] Supply, DemandShift?[] Demand)
+public sealed record PeakPattern(int PeakDay, bool Strong, Supply[] Supply, DemandShift?[] Demand, DemandShift? FirstDayDemandNever = null)
 {
     public string Name => $"C{PeakDay + 1}{(Strong ? "S" : "W")}";
 }
@@ -51,8 +53,12 @@ public static class PeakPatterns
 
     public static readonly IReadOnlyList<PeakPattern> All = new PeakPattern[]
     {
-        new(1, false, new[] { Ins, Ins, Suf, Suf, Suf, Suf, Suf }, new[] { Inc, Inc, Plu, Non0, Non0, Non0, Non0 }),
-        new(1, true,  new[] { Ins, Non, Suf, Suf, Suf, Suf, Suf }, new[] { Sky, Sky, Plu, Non0, Non0, Non0, Non0 }),
+        // Day 0's shift compares with last week's final day, so it depends on last week, not on this pattern.
+        // WorkshopOptimizer pins it (weak Increasing, strong Skyrocketing), which rules out a strong peak seen with no
+        // change. Beachcomber (Squawkbot's model) and mji-craftwork agree only that no change means strong and
+        // Increasing means weak; every other shift fits both (PeakPatternTests.InsufficientOnTheFirstDayIsACycleTwoPeak).
+        new(1, false, new[] { Ins, Ins, Suf, Suf, Suf, Suf, Suf }, new[] { Any, Inc, Plu, Non0, Non0, Non0, Non0 }, FirstDayDemandNever: DemandShift.None),
+        new(1, true,  new[] { Ins, Non, Suf, Suf, Suf, Suf, Suf }, new[] { Any, Sky, Plu, Non0, Non0, Non0, Non0 }, FirstDayDemandNever: DemandShift.Increasing),
         new(2, false, new[] { Suf, Ins, Ins, Suf, Suf, Suf, Suf }, new[] { Any, Inc, Inc, Plu, Non0, Non0, Non0 }),
         new(2, true,  new[] { Suf, Ins, Non, Suf, Suf, Suf, Suf }, new[] { Any, Sky, Sky, Plu, Non0, Non0, Non0 }),
         new(3, false, new[] { Suf, Suf, Ins, Ins, Suf, Suf, Suf }, new[] { Any, Non0, Inc, Inc, Plu, Non0, Non0 }),
@@ -83,6 +89,8 @@ public static class PeakPatterns
                 if (!supplyDistorted(day) && p.Supply[day] != seen.Supply)
                     return false;
                 if (p.Demand[day] is { } d && d != seen.Demand)
+                    return false;
+                if (day == 0 && p.FirstDayDemandNever == seen.Demand)
                     return false;
             }
 

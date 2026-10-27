@@ -69,8 +69,12 @@ public class WorkshopModelTests
         var seen = new (Supply, DemandShift)?[7];
         Assert.Equal(12, PeakPatterns.Consistent(seen, _ => false).Count);
 
-        // Day 1 Insufficient + Skyrocketing: only the strong C2 pattern fits (Ins/Non + Sky/Sky on days 0-1).
+        // Day 1 Insufficient: a cycle-2 peak. Skyrocketing alone can't tell its strength (it depends on last week)...
         seen[0] = (Supply.Insufficient, DemandShift.Skyrocketing);
+        Assert.Equal(new[] { "C2W", "C2S" }, PeakPatterns.Consistent(seen, _ => false).Select(p => p.Name));
+
+        // ...day 2 Nonexistent + Skyrocketing can: only the strong one.
+        seen[1] = (Supply.Nonexistent, DemandShift.Skyrocketing);
         var left = PeakPatterns.Consistent(seen, _ => false);
         Assert.Equal(new[] { "C2S" }, left.Select(p => p.Name));
     }
