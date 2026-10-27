@@ -11,8 +11,13 @@ public sealed record FavorRequirement(int CraftId, int Required);
 
 public sealed record PlannerLimits
 {
-    /// <summary>Chains kept per day before any state is looked at, ranked by a single-workshop optimistic value.</summary>
-    public int ChainsPerDay { get; init; } = 150;
+    /// <summary>
+    /// Chains kept per day before any state is looked at, ranked by a single-workshop optimistic value. 4000 (was 150):
+    /// that additive ranking misses chains that pay off through groove and same-day supply, and each state re-ranks the
+    /// pool exactly. Measured 2026-10-27 on 20 seeded weeks: +1.8% cowries, ~0.35 s a week warm, ~0.9 s cold
+    /// (PlanQualityTests).
+    /// </summary>
+    public int ChainsPerDay { get; init; } = 4000;
 
     /// <summary>Of those, the best chains for one search state that are paired up into whole-day assignments.</summary>
     public int ChainsPerState { get; init; } = 10;

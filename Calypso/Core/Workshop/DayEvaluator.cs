@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace Calypso.Core.Workshop;
 
@@ -48,6 +49,9 @@ public sealed class DayEvaluator
     /// <param name="chains">Chain per workshop (null = idle/unbuilt), parallel to <paramref name="tiers"/>.</param>
     /// <param name="producedBefore">Own production this week before <paramref name="day"/>, by craft id. Not modified.</param>
     /// <param name="producedToday">Zeroed scratch array (length MaxCraftId+1) that receives today's production.</param>
+    // The planner's innermost call (hundreds of thousands a plan): compiled fully optimised up front, so the first plan of
+    // a session doesn't run it as unoptimised first-tier code.
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public (double Value, int EndGroove) Evaluate(
         int day,
         IReadOnlyList<int[]?> chains,
