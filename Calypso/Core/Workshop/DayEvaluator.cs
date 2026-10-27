@@ -9,7 +9,7 @@ namespace Calypso.Core.Workshop;
 /// Per craft (see <see cref="CraftValue"/>; the game truncates twice, in 32-bit float):
 ///   base  = floor(BaseValue × tier × groove)
 ///   value = floor(base × popularity% × supply% / 10000) × items
-/// where items = 1 for a chain's first craft and 2 for every efficient craft after it. The supply bucket is a forecast,
+/// where items = 2 for an efficient craft (see <see cref="CraftDef.ChainsAfter"/>) and 1 otherwise. The supply bucket is a forecast,
 /// so a sale is the expectation of that whole-cowrie value over the buckets it may land in.
 ///
 /// Groove rises by 1 (capped) when a workshop STARTS an efficient craft, so that craft already sells with its own point.
@@ -25,8 +25,8 @@ public sealed class DayEvaluator
     private readonly int _popularityRow;
     private readonly int _maxGroove;
 
-    // Reused per call: (hour, workshop, step, craft) of every finishing craft.
-    private readonly List<(int Hour, int Workshop, int Step, int Craft)> _events = new(24);
+    // Reused per call: (hour, workshop, efficient, craft) of every finishing craft.
+    private readonly List<(int Hour, int Workshop, bool Efficient, int Craft)> _events = new(24);
 
     // Reused per call: efficient crafts started at each hour of the cycle.
     private readonly int[] _efficientStarts = new int[ChainGenerator.HoursPerCycle + 1];
@@ -64,17 +64,23 @@ public sealed class DayEvaluator
             if (chains[w] is not { } chain || tiers[w] <= 0)
                 continue;
 
+            // Efficient = shares a theme with the previous craft and is a different craft. The planner only builds such
+            // chains, but a pasted schedule may break one: that step makes 1 item and no groove.
             var hour = 0;
-            for (var step = 0; step < chain.Length; step++)
+            CraftDef? previous = null;
+            foreach (var id in chain)
             {
-                if (step > 0 && hour < _efficientStarts.Length)
+                var craft = _catalog.Get(id)!;
+                var efficient = previous != null && craft.ChainsAfter(previous);
+                if (efficient && hour < _efficientStarts.Length)
                 {
                     _efficientStarts[hour]++;
                     efficientTotal++;
                 }
 
-                hour += _catalog.Get(chain[step])!.Hours;
-                _events.Add((hour, w, step, chain[step]));
+                hour += craft.Hours;
+                _events.Add((hour, w, efficient, id));
+                previous = craft;
             }
         }
 
@@ -101,7 +107,7 @@ public sealed class DayEvaluator
             {
                 var ev = _events[e];
                 var craft = _catalog.Get(ev.Craft)!;
-                var items = ev.Step == 0 ? 1 : 2;
+                var items = ev.Efficient ? 2 : 1;
                 var grooveBase = GrooveBase(craft.BaseValue, _catalog.Rules.TierRatio(tiers[ev.Workshop]), groove);
                 var popularity = _catalog.Rules.PopularityRatio(_popularityRow, ev.Craft);
                 _forecast.SupplyWeights(ev.Craft, day, producedBefore[ev.Craft], producedToday[ev.Craft], _supplyWeights);
@@ -118,7 +124,7 @@ public sealed class DayEvaluator
             for (var e = i; e < end; e++)
             {
                 var ev = _events[e];
-                producedToday[ev.Craft] += ev.Step == 0 ? 1 : 2;
+                producedToday[ev.Craft] += ev.Efficient ? 2 : 1;
             }
 
             i = end;
