@@ -52,4 +52,58 @@ public class PeakPatternTests
         Assert.Equal(10, forecast.PatternCount(craft)); // all but the two cycle-2 shapes (day 0 was Sufficient)
         Assert.Equal(4, forecast.PatternCount(2));      // untouched, Sufficient + no change on day 1: C4W, C4S, C5W, C5S
     }
+
+    public static IEnumerable<object[]> AllPatterns() => PeakPatterns.All.Select(p => new object[] { p.Name });
+
+    [Theory]
+    [MemberData(nameof(AllPatterns))]
+    public void EachPatternIsPinnedDownByItsOwnFirstDays(string name)
+    {
+        var pattern = PeakPatterns.All.Single(p => p.Name == name);
+        var cat = Fixture.Catalog;
+
+        // What the game shows for an item on this pattern on days 0-3, with nothing made by us.
+        var observed = new byte[]?[7];
+        for (var day = 0; day < PeakPatterns.MaxEvidenceDays; day++)
+            observed[day] = Enumerable.Repeat(Scenarios.Pack(pattern, day), 91).ToArray();
+        var forecast = new SupplyForecast(cat, observed, new int[]?[7]);
+
+        Assert.Equal(1, forecast.PatternCount(1));
+        for (var day = PeakPatterns.MaxEvidenceDays; day < 7; day++)
+        {
+            Assert.Equal(1.0, forecast.Confidence(1, day), 9);
+            Assert.Equal(cat.Rules.SupplyRatio[(int)pattern.Supply[day]], forecast.ExpectedRatio(1, day, 0, 0), 9);
+        }
+    }
+
+    [Fact]
+    public void WithNoEvidenceEveryPatternCountsEqually()
+    {
+        var cat = Fixture.Catalog;
+        var forecast = Fixture.NoObservations();
+        for (var day = 0; day < 7; day++)
+        {
+            var mean = PeakPatterns.All.Average(p => (double)cat.Rules.SupplyRatio[(int)p.Supply[day]]);
+            var top = PeakPatterns.All.GroupBy(p => p.Supply[day]).Max(g => g.Count()) / 12.0;
+            Assert.Equal(mean, forecast.ExpectedRatio(5, day, 0, 0), 9);
+            Assert.Equal(top, forecast.Confidence(5, day), 9);
+        }
+    }
+
+    [Fact]
+    public void AmbiguousEvidenceAveragesOverTheConsistentPatternsOnly()
+    {
+        // Insufficient + Skyrocketing on day 0: weak or strong cycle-2 peak.
+        var cat = Fixture.Catalog;
+        var observed = new byte[]?[7];
+        observed[0] = Enumerable.Repeat((byte)0x22, 91).ToArray();
+        observed[0]![7] = (byte)(((int)Supply.Insufficient << 4) | (int)DemandShift.Skyrocketing);
+        var forecast = new SupplyForecast(cat, observed, new int[]?[7]);
+
+        Assert.Equal(2, forecast.PatternCount(7));
+        Assert.Equal((130 + 160) / 2.0, forecast.ExpectedRatio(7, 1, 0, 0), 9); // Insufficient or Nonexistent tomorrow
+        Assert.Equal(0.5, forecast.Confidence(7, 1), 9);
+        Assert.Equal(100, forecast.ExpectedRatio(7, 2, 0, 0), 9);               // both back to Sufficient
+        Assert.Equal(1.0, forecast.Confidence(7, 2), 9);
+    }
 }
