@@ -24,9 +24,14 @@ public sealed class GatherRun
 {
     private const float InteractRange = 3.5f;
     private const int StackCap = 999;
-    private static readonly TimeSpan NoProgressLimit = TimeSpan.FromMinutes(3);
+    // [REPLACED: 3 minutes ended Saar's copper run while he walked to the next rocks (2026-10-22 19:21) — dead ends are
+    // caught on their own now (unreachable types, no navmesh, items no node gives), so this only guards a stuck run]
+    // private static readonly TimeSpan NoProgressLimit = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan NoProgressLimit = TimeSpan.FromMinutes(8);
     private static readonly TimeSpan SpotCooldown = TimeSpan.FromMinutes(3);
     private static readonly TimeSpan NodeCooldown = TimeSpan.FromSeconds(45);
+    private static readonly TimeSpan NavWaitLimit = TimeSpan.FromMinutes(3);
+    private DateTime? _navMissingSince;
 
     private enum Phase
     {
@@ -54,6 +59,7 @@ public sealed class GatherRun
     private DateTime _lastProgress;
     private IGameObject? _node;
     private Vector3? _spot;
+    private bool _spotInArea;
     private string _nodeName = string.Empty;
     private Dictionary<uint, int> _before = new();
     private int _navTries;
@@ -83,12 +89,22 @@ public sealed class GatherRun
     /// <summary>Node types that gave nothing this run (full bag) — skipped until the next run.</summary>
     private readonly HashSet<string> _gaveNothing = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Node types whose nodes couldn't be reached this run, with how many (underwater nodes: the navmesh can't walk to
+    /// them — Saar 2026-10-22). At <see cref="UnreachableLimit"/> the type is skipped until the next run.
+    /// </summary>
+    private readonly Dictionary<string, int> _unreachable = new(StringComparer.OrdinalIgnoreCase);
+    private const int UnreachableLimit = 3;
+
     /// <summary>Gather until each pouch row reaches its absolute target count (capped at the stack size).</summary>
     public void Begin(IReadOnlyDictionary<int, int> targets, DateTime now)
     {
         _targets.Clear();
         _dropped.Clear();
         _gaveNothing.Clear();
+        _unreachable.Clear();
+        _navMissingSince = null;
+        _seenAt.Clear();
         _spotChecked.Clear();
         foreach (var (row, n) in targets)
             _targets[row] = Math.Min(n, StackCap);
@@ -117,10 +133,24 @@ public sealed class GatherRun
             var needs = shortRows.Select(m => MissingTool(m.Row)).Distinct();
             return StepResult.Failed($"what is left needs a tool you do not have yet: {string.Join(", ", needs)}");
         }
+        // [REPLACED: no navmesh failed the run at once — but Ariadne rebuilds the island mesh whenever the island's layout
+        // key changes (Saar 2026-10-22 19:05, "navmesh not ready … (first visit builds it)"), which takes a while]
+        // if (now - _lastProgress > NoProgressLimit)
+        //     return StepResult.Failed($"nothing gathered for {NoProgressLimit.TotalMinutes:0} minutes");
+        // if (_nav.Provider.Length == 0)
+        //     return StepResult.Failed(_nav.Unavailable);
+        if (_nav.Provider.Length == 0)
+        {
+            _navMissingSince ??= now;
+            if (now - _navMissingSince.Value > NavWaitLimit)
+                return StepResult.Failed(_nav.Unavailable);
+            _lastProgress = now; // waiting for the mesh isn't "nothing gathered"
+            return StepResult.Running($"waiting for the navmesh ({_nav.Unavailable})");
+        }
+
+        _navMissingSince = null;
         if (now - _lastProgress > NoProgressLimit)
             return StepResult.Failed($"nothing gathered for {NoProgressLimit.TotalMinutes:0} minutes");
-        if (_nav.Provider.Length == 0)
-            return StepResult.Failed(_nav.Unavailable);
 
         switch (_phase)
         {
@@ -166,10 +196,12 @@ public sealed class GatherRun
         var wanted = missing.Select(m => _catalog.Pouch.TryGetValue(m.Row, out var p) ? p.ItemId : 0u).Where(i => i != 0).ToList();
 
         var signature = _tools.Signature();
+        Remember(now);
 
         // Wanted items no node has given yet, and the items sharing their map area: a node known to give one of those
         // is the likeliest source (Island Limestone → whatever gives Island Stone).
-        var hints = _book.Unsourced(wanted).SelectMany(_tools.SameArea).ToHashSet();
+        var unsourced = _book.Unsourced(wanted).ToList();
+        var hints = unsourced.SelectMany(_tools.SameArea).ToHashSet();
 
         // [REPLACED: nodes whose every known drop is at its cap were still visited — the game refuses them ("You cannot
         // carry any more…"), so a search walked from one full node to the next (Korha 2026-10-19)]
@@ -177,13 +209,29 @@ public sealed class GatherRun
         // A hinted node still gets one try when its known drops are full: whether the game gives the new drop alone
         // when the old one is capped isn't known yet. A node type that gave nothing is skipped for the rest of the run.
         var scored = Candidates(now)
-            .Where(o => !_gaveNothing.Contains(o.Name.TextValue))
+            .Where(o => !_gaveNothing.Contains(o.Name.TextValue) && _unreachable.GetValueOrDefault(o.Name.TextValue) < UnreachableLimit
+                        && !_tools.UnderwaterNodes.Contains(o.Name.TextValue))
             .Select(o => (o, p: _book.Priority(o.Name.TextValue, signature, wanted),
-                hinted: !_book.Known(o.Name.TextValue, signature) && _book.Gives(o.Name.TextValue).Any(hints.Contains)))
+                // [REPLACED: same-area items only — an item nobody has a neighbour for (Copper Ore) had no hint, and Saar
+                // tried every underwater node on the east coast first (2026-10-22)]
+                // hinted: !_book.Known(o.Name.TextValue, signature) && _book.Gives(o.Name.TextValue).Any(hints.Contains)))
+                hinted: !_book.Known(o.Name.TextValue, signature)
+                        && (_book.Gives(o.Name.TextValue).Any(hints.Contains) || unsourced.Any(u => _tools.InArea(u, o.Position)))))
             .Where(x => x.hinted || !AllFull(x.o.Name.TextValue))
             .ToList();
         if (scored.Any(x => x.p.Tier < 2))
             scored = scored.Where(x => x.p.Tier < 2).ToList(); // known non-producers only when nothing better is loaded
+
+        // An unfound item the sheet places somewhere, and nothing loaded inside its area: go there (spot search below
+        // prefers its spots) rather than trying whatever untried node is nearest — Saar kept going for coral formations
+        // off the east coast while looking for copper ore (2026-10-22). Known producers of something wanted still count.
+        if (unsourced.Any(u => _tools.Areas(u).Count > 0) && !scored.Any(x => x.hinted))
+            scored = scored.Where(x => x.p.Rate > 0).ToList();
+
+        // Everything wanted has a known source: exploring untried node types only wastes walks (Saar 2026-10-22, copper
+        // 8/20 and vine 16/20, swimming at coral). No known producer loaded → the spot search walks to their areas.
+        if (unsourced.Count == 0)
+            scored = scored.Where(x => x.p.Rate > 0).ToList();
 
         // [REPLACED: nearest within a tier, with no use of the sheet's area hint]
         // var node = scored.OrderBy(x => x.p.Tier).ThenBy(x => _act.DistanceTo(x.o.Position)).Select(x => x.o).FirstOrDefault();
@@ -206,10 +254,37 @@ public sealed class GatherRun
             return StepResult.Running($"going to {_nodeName}");
         }
 
-        // Nothing loaded nearby: head for the nearest gathering spot not checked recently.
+        // No producer loaded: go back to where producers of what's wanted stood earlier this run — gathered nodes respawn
+        // (Saar "ran out of nodes" mining copper, 2026-10-22). The place visited longest ago first.
+        var producers = _seenAt.Keys.Where(n => _book.BestRate(n, wanted) > 0 && !_gaveNothing.Contains(n)).ToHashSet();
+        var back = _seenAt.Where(kv => producers.Contains(kv.Key))
+            .SelectMany(kv => kv.Value)
+            .Where(p => !_spotChecked.TryGetValue(p, out var t) || now - t > SpotCooldown)
+            .OrderBy(p => _spotChecked.TryGetValue(p, out var t) ? t : DateTime.MinValue)
+            .ThenBy(p => _act.DistanceTo(p))
+            .Cast<Vector3?>()
+            .FirstOrDefault();
+        if (back is { } where)
+        {
+            _node = null;
+            _spot = where;
+            _spotInArea = true; // must actually get there before it counts as checked
+            _navTries = 0;
+            _nav.MoveCloseTo(where, 10f);
+            Enter(Phase.Travel, now);
+            return StepResult.Running($"back to where {string.Join(" / ", producers.Take(2))} stood");
+        }
+
+        // Nothing loaded nearby: head for the nearest gathering spot not checked recently — one inside an unfound
+        // item's area first (the sheet says where it grows).
+        // [REPLACED: nearest spot anywhere]
+        // var spot = _layout.GatherSpots
+        //     .Where(s => !_spotChecked.TryGetValue(s, out var t) || now - t > SpotCooldown)
+        //     .OrderBy(s => _act.DistanceTo(s))
         var spot = _layout.GatherSpots
             .Where(s => !_spotChecked.TryGetValue(s, out var t) || now - t > SpotCooldown)
-            .OrderBy(s => _act.DistanceTo(s))
+            .OrderBy(s => unsourced.Any(u => _tools.InArea(u, s)) ? 0 : wanted.Any(w => _tools.InArea(w, s)) ? 1 : 2)
+            .ThenBy(s => _act.DistanceTo(s))
             .Cast<Vector3?>()
             .FirstOrDefault();
         if (spot == null)
@@ -218,8 +293,8 @@ public sealed class GatherRun
             // return StepResult.Failed("no gathering node found anywhere on the island");
 
             // The whole island has been looked at: give up on what no node has ever given, then sweep again (nodes respawn).
-            var unsourced = _book.Unsourced(wanted).ToHashSet();
-            foreach (var row in missing.Select(m => m.Row).Where(r => _catalog.Pouch.TryGetValue(r, out var p) && unsourced.Contains(p.ItemId)))
+            var noSource = unsourced.ToHashSet();
+            foreach (var row in missing.Select(m => m.Row).Where(r => _catalog.Pouch.TryGetValue(r, out var p) && noSource.Contains(p.ItemId)))
             {
                 _targets.Remove(row);
                 _dropped.Add(row);
@@ -238,10 +313,15 @@ public sealed class GatherRun
 
         _node = null;
         _spot = spot;
+        // [REPLACED: only unfound items' areas were walked to; known items' areas are worth reaching too]
+        // _spotInArea = unsourced.Any(u => _tools.InArea(u, spot.Value));
+        _spotInArea = wanted.Any(w => _tools.InArea(w, spot.Value));
         _navTries = 0;
         _nav.MoveCloseTo(spot.Value, 10f);
         Enter(Phase.Travel, now);
-        return StepResult.Running("looking for gathering nodes");
+        // [REPLACED: one message for both kinds of walk]
+        // return StepResult.Running("looking for gathering nodes");
+        return StepResult.Running(_spotInArea ? "heading to where what's wanted grows" : "looking for gathering nodes");
     }
 
     /// <summary>Every item this node type is known to give is at its Isleventory cap — the game would refuse it.</summary>
@@ -250,6 +330,23 @@ public sealed class GatherRun
         var gives = _book.Gives(node).ToList();
         return gives.Count > 0 && gives.All(i => _count(i) >= _tools.StackSize(i));
     }
+
+    /// <summary>Note where each node type stands (this run) — positions to come back to once a node respawns.</summary>
+    private void Remember(DateTime now)
+    {
+        foreach (var o in _act.NearbyGatheringPoints(_layout.NodeBaseIds))
+        {
+            var name = o.Name.TextValue;
+            if (name.Length == 0)
+                continue;
+            if (!_seenAt.TryGetValue(name, out var list))
+                _seenAt[name] = list = new List<Vector3>();
+            if (list.Count < 40 && !list.Any(p => Vector3.Distance(p, o.Position) < 15f))
+                list.Add(o.Position);
+        }
+    }
+
+    private readonly Dictionary<string, List<Vector3>> _seenAt = new(StringComparer.OrdinalIgnoreCase);
 
     private IEnumerable<IGameObject> Candidates(DateTime now) =>
         _act.NearbyGatheringPoints(_layout.NodeBaseIds).Where(o => !_nodeUsed.TryGetValue(o.Position, out var t) || now - t > NodeCooldown);
@@ -275,7 +372,10 @@ public sealed class GatherRun
         }
         else if (_spot is { } spot)
         {
-            if (_act.NearbyGatheringPoints(_layout.NodeBaseIds).Any() || _act.DistanceTo(spot) < 25f)
+            // [REPLACED: any loaded node ended the walk — on the island that's at once, so an unfound item's area was
+            // marked checked without ever going there]
+            // if (_act.NearbyGatheringPoints(_layout.NodeBaseIds).Any() || _act.DistanceTo(spot) < 25f)
+            if (_act.DistanceTo(spot) < 25f || (!_spotInArea && _act.NearbyGatheringPoints(_layout.NodeBaseIds).Any()))
             {
                 _spotChecked[spot] = now;
                 Enter(Phase.Pick, now);
@@ -289,7 +389,10 @@ public sealed class GatherRun
             if (++_navTries > 3)
             {
                 if (_node != null)
+                {
                     _nodeUsed[_node.Position] = now;
+                    _unreachable[_nodeName] = _unreachable.GetValueOrDefault(_nodeName) + 1; // after a few, the whole type is skipped
+                }
                 if (_spot is { } s)
                     _spotChecked[s] = now;
                 Enter(Phase.Pick, now);

@@ -26,6 +26,29 @@ public sealed unsafe class GatherTools
     /// <summary>Other island items whose map area (MJIGatheringItem X/Y/Radius) is the same as this one's.</summary>
     public IReadOnlyCollection<uint> SameArea(uint itemId) => _sameArea.GetValueOrDefault(itemId) ?? Array.Empty<uint>();
 
+    /// <summary>
+    /// Where an item grows: MJIGatheringItem X/Y = world X/Z, Radius in yalms. VERIFIED 2026-10-19 — the island LGB has a
+    /// gathering PopRange at exactly each item's X/Y (planlive VERMJI_GATHERING). One item can have several areas.
+    /// </summary>
+    public IReadOnlyList<(float X, float Z, float Radius)> Areas(uint itemId) => _areas.GetValueOrDefault(itemId) ?? (IReadOnlyList<(float, float, float)>)Array.Empty<(float, float, float)>();
+
+    /// <summary>True when a world position (X/Z) lies inside one of the item's areas, with some slack for the edge.</summary>
+    public bool InArea(uint itemId, System.Numerics.Vector3 p, float slack = 15f) =>
+        Areas(itemId).Any(a => (p.X - a.X) * (p.X - a.X) + (p.Z - a.Z) * (p.Z - a.Z) <= (a.Radius + slack) * (a.Radius + slack));
+
+    private readonly Dictionary<uint, IReadOnlyList<(float X, float Z, float Radius)>> _areas;
+
+    /// <summary>
+    /// Node types that sit underwater: MJIGatheringObject.Unknown0 = node category bitmask (1 trees, 2 plants, 4 dirt and
+    /// sand, 8 rocks, 16 underwater — Large Shell, Seaweed Tangle, Coral Formation; 2026-10-22). Calypso walks the
+    /// navmesh and can't dive YET, so for now these are skipped (Saar kept swimming at coral formations).
+    /// TEMPORARY (user 2026-10-22): they're needed later — the Bronze Gig (rank 7) gathers fish from them, and diving
+    /// comes with it. When diving is built, gate this on "can dive" instead of skipping always.
+    /// </summary>
+    public IReadOnlySet<string> UnderwaterNodes => _underwater;
+
+    private readonly HashSet<string> _underwater;
+
     /// <summary>Isleventory cap for an island item (Item.StackSize).</summary>
     public int StackSize(uint itemId) => _stackSize.GetValueOrDefault(itemId, 999);
 
@@ -47,6 +70,15 @@ public sealed unsafe class GatherTools
         // Tree; Apple + Vine at 194,72 → Island Apple Tree), so Island Limestone (-22,-46, with Island Stone) points at
         // Smooth White Rock. Only a hint — an item can also drop elsewhere (Mahogany Tree gives Island Log too), and
         // gathering confirms or corrects it.
+        var eobjNames = data.GetExcelSheet<EObjName>();
+        _underwater = data.GetExcelSheet<MJIGatheringObject>().Where(o => o.Unknown0 == 16 && o.Name.RowId != 0)
+            .Select(o => eobjNames.GetRowOrDefault(o.Name.RowId)?.Singular.ExtractText() ?? string.Empty)
+            .Where(n => n.Length > 0)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        _areas = gatherItems.GroupBy(g => g.Item.RowId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<(float, float, float)>)g.Select(x => ((float)x.X, (float)x.Y, (float)x.Radius)).Distinct().ToList());
+
         _sameArea = gatherItems.GroupBy(g => (g.X, g.Y, g.Radius))
             .SelectMany(a => a.Select(g => (g.Item.RowId, Others: a.Select(o => o.Item.RowId).Where(o => o != g.Item.RowId).ToList())))
             .GroupBy(x => x.RowId)
