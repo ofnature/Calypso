@@ -49,7 +49,9 @@ public sealed class SupplyForecast
             }
 
             var craft = c;
-            var patterns = PeakPatterns.Consistent(seen, day => ProducedBefore(producedOnDay, craft, day) > 0);
+            var patterns = PeakPatterns.Consistent(seen,
+                day => ProducedBefore(producedOnDay, craft, day) > 0,
+                day => day > 0 && ProducedBefore(producedOnDay, craft, day) > ProducedBefore(producedOnDay, craft, day - 1));
             _patternCount[c] = patterns.Count;
 
             for (var d = 0; d < Days; d++)

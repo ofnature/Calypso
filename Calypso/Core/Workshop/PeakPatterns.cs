@@ -74,11 +74,14 @@ public static class PeakPatterns
     /// <summary>
     /// The patterns consistent with what was seen for one item. <paramref name="observed"/>[day] is null for a day
     /// not observed. A day's supply is ignored when <paramref name="supplyDistorted"/> says our own production had
-    /// already moved it (the table describes natural supply); its demand shift still counts.
+    /// already moved it (the table describes natural supply). Its demand shift is ignored when
+    /// <paramref name="demandDistorted"/> says so: the shift is the change since the day before, so items we made the
+    /// day before are part of it.
     /// </summary>
     public static IReadOnlyList<PeakPattern> Consistent(
         IReadOnlyList<(Supply Supply, DemandShift Demand)?> observed,
-        System.Func<int, bool> supplyDistorted)
+        System.Func<int, bool> supplyDistorted,
+        System.Func<int, bool>? demandDistorted = null)
     {
         return All.Where(p =>
         {
@@ -88,6 +91,8 @@ public static class PeakPatterns
                     continue;
                 if (!supplyDistorted(day) && p.Supply[day] != seen.Supply)
                     return false;
+                if (demandDistorted?.Invoke(day) == true)
+                    continue;
                 if (p.Demand[day] is { } d && d != seen.Demand)
                     return false;
                 if (day == 0 && p.FirstDayDemandNever == seen.Demand)
