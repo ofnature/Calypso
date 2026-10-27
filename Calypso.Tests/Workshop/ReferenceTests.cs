@@ -51,4 +51,35 @@ public class ReferenceTests
         Assert.Equal(expected, value, 9);
         Assert.Equal(10, groove);
     }
+
+    [Fact]
+    public void FourWorkshopDayMatchesTheReferenceSimulation()
+    {
+        // mji-craftwork tests/simulate.rs test_simulate_multi_batch: tier III, groove 0 (cap 35), its popularity
+        // pattern 1 (= our popularity row 0: its helper keeps 0 for "unknown"). Three workshops run
+        // Boiled Egg-Scale Fingers-Boiled Egg-Scale Fingers (14, 49, 14, 49) and the fourth runs
+        // Popoto Salad-Isloaf-Cawl Cennin-Isloaf-Cawl Cennin (59, 58, 57, 58, 57). Its supply never leaves Average in that run, so a flat 100% supply table removes our
+        // supply interpolation from the comparison and leaves rounding and groove.
+        // Reference sales per step: [72, 422, 158, 452] in each of the three, [86, 152, 278, 164, 292] in the fourth.
+        var real = Fixture.Catalog;
+        var r = real.Rules;
+        var flat = new WorkshopRules(r.PopularityTypeRatio, r.Popularity, r.RankRatio, new[] { 100, 100, 100, 100, 100 }, r.MaxGrooveByLandmarks);
+        var cat = new CraftCatalog(real.Crafts, real.Pouch.Values, flat);
+        var evaluator = new DayEvaluator(cat, new SupplyForecast(cat, new byte[]?[7], new int[]?[7]), popularityRow: 0, maxGroove: 35);
+
+        var main = new[] { 14, 49, 14, 49 };
+        var fourth = new[] { 59, 58, 57, 58, 57 };
+        var (value, groove) = evaluator.Evaluate(0, new[] { main, main, main, fourth }, new[] { 3, 3, 3, 3 }, 0,
+            new int[cat.MaxCraftId + 1], new int[cat.MaxCraftId + 1]);
+
+        Assert.Equal(3 * (72 + 422 + 158 + 452) + (86 + 152 + 278 + 164 + 292), value, 9);
+        Assert.Equal(13, groove);
+
+        // Why groove counts when an efficient craft STARTS: the first Scale Fingers (8 h, finishing at hour 12) sells
+        // for 422 = 2 × floor(floor(120 × 1.2 × 1.05) × 1.4), i.e. at groove 5 — the three Scale Fingers (hour 4) and
+        // the fourth workshop's Isloaf (hour 4) and Cawl Cennin (hour 8) all started before hour 12. Counting groove on completion (WorkshopOptimizer's
+        // hour loop) would give groove 1 there (only the fourth workshop's hour-8 finish) and 2 × floor(145 × 1.4) = 406.
+        Assert.Equal(422, DayEvaluator.CraftValue(120, 120, 5, 140, 100, efficient: true));
+        Assert.Equal(406, DayEvaluator.CraftValue(120, 120, 1, 140, 100, efficient: true));
+    }
 }

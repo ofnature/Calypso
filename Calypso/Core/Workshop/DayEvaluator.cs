@@ -12,8 +12,11 @@ namespace Calypso.Core.Workshop;
 /// where items = 1 for a chain's first craft and 2 for every efficient craft after it. The supply bucket is a forecast,
 /// so a sale is the expectation of that whole-cowrie value over the buckets it may land in.
 ///
-/// Crafts finishing in the same hour are valued against the same state; then their items are added to that day's
-/// supply and each efficient one raises groove by 1 (capped). This matches WorkshopOptimizer's hour loop.
+/// Groove rises by 1 (capped) when a workshop STARTS an efficient craft, so that craft already sells with its own point.
+/// A craft finishing at hour h sells at the groove from every efficient craft started before h; crafts finishing in the
+/// same hour are valued against the same state, and only then are their items added to that day's supply. This is what
+/// mji-craftwork and Beachcomber (Squawkbot's model) do; WorkshopOptimizer counts groove on completion, which the
+/// reference example in ReferenceTests shows to be wrong.
 /// </summary>
 public sealed class DayEvaluator
 {
@@ -24,6 +27,9 @@ public sealed class DayEvaluator
 
     // Reused per call: (hour, workshop, step, craft) of every finishing craft.
     private readonly List<(int Hour, int Workshop, int Step, int Craft)> _events = new(24);
+
+    // Reused per call: efficient crafts started at each hour of the cycle.
+    private readonly int[] _efficientStarts = new int[ChainGenerator.HoursPerCycle + 1];
 
     // Reused per craft: probability of selling at each supply bucket.
     private readonly double[] _supplyWeights;
@@ -51,6 +57,8 @@ public sealed class DayEvaluator
         int[] producedToday)
     {
         _events.Clear();
+        Array.Clear(_efficientStarts);
+        var efficientTotal = 0;
         for (var w = 0; w < chains.Count; w++)
         {
             if (chains[w] is not { } chain || tiers[w] <= 0)
@@ -59,6 +67,12 @@ public sealed class DayEvaluator
             var hour = 0;
             for (var step = 0; step < chain.Length; step++)
             {
+                if (step > 0 && hour < _efficientStarts.Length)
+                {
+                    _efficientStarts[hour]++;
+                    efficientTotal++;
+                }
+
                 hour += _catalog.Get(chain[step])!.Hours;
                 _events.Add((hour, w, step, chain[step]));
             }
@@ -66,7 +80,9 @@ public sealed class DayEvaluator
 
         _events.Sort(static (a, b) => a.Hour != b.Hour ? a.Hour.CompareTo(b.Hour) : a.Workshop.CompareTo(b.Workshop));
 
-        var groove = Math.Min(startGroove, _maxGroove);
+        var startingGroove = Math.Min(startGroove, _maxGroove);
+        var startedBefore = 0;
+        var countedHours = 0;
         var value = 0.0;
         var i = 0;
         while (i < _events.Count)
@@ -75,6 +91,10 @@ public sealed class DayEvaluator
             var end = i;
             while (end < _events.Count && _events[end].Hour == hour)
                 end++;
+
+            while (countedHours < hour && countedHours < _efficientStarts.Length)
+                startedBefore += _efficientStarts[countedHours++];
+            var groove = Math.Min(startingGroove + startedBefore, _maxGroove);
 
             // Value every craft finishing this hour against the state at the start of the hour.
             for (var e = i; e < end; e++)
@@ -99,14 +119,12 @@ public sealed class DayEvaluator
             {
                 var ev = _events[e];
                 producedToday[ev.Craft] += ev.Step == 0 ? 1 : 2;
-                if (ev.Step > 0 && groove < _maxGroove)
-                    groove++;
             }
 
             i = end;
         }
 
-        return (value, groove);
+        return (value, Math.Min(startingGroove + efficientTotal, _maxGroove));
     }
 
     /// <summary>
