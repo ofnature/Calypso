@@ -1,0 +1,869 @@
+{
+ "source": "xivapi/ffxiv-datamining commit 44948e4cda5846eab0baa9872122a888fcc4f1b1, csv/en: MJIAnimals (Reward[0], Reward[1] = the two leavings, Size, Unknown0 = rarity 1 common / 2 variant / 3 rare, Unknown1 = species group), MJIItemPouch (category 5 = leavings), Item (Name). Game data, facts only. Spawn weather/time are in no sheet and are not here.",
+ "leavings": [
+  {
+   "pouch": 52,
+   "itemId": 37603,
+   "name": "Sanctuary Fleece"
+  },
+  {
+   "pouch": 53,
+   "itemId": 37604,
+   "name": "Sanctuary Claw"
+  },
+  {
+   "pouch": 54,
+   "itemId": 37605,
+   "name": "Sanctuary Fur"
+  },
+  {
+   "pouch": 55,
+   "itemId": 37606,
+   "name": "Sanctuary Feather"
+  },
+  {
+   "pouch": 56,
+   "itemId": 37607,
+   "name": "Sanctuary Egg"
+  },
+  {
+   "pouch": 57,
+   "itemId": 37608,
+   "name": "Sanctuary Carapace"
+  },
+  {
+   "pouch": 58,
+   "itemId": 37609,
+   "name": "Sanctuary Fang"
+  },
+  {
+   "pouch": 59,
+   "itemId": 37610,
+   "name": "Sanctuary Horn"
+  },
+  {
+   "pouch": 60,
+   "itemId": 37611,
+   "name": "Sanctuary Milk"
+  }
+ ],
+ "animals": [
+  {
+   "row": 1,
+   "bnpcBase": 14906,
+   "leavings": [
+    {
+     "pouch": 52,
+     "itemId": 37603,
+     "name": "Sanctuary Fleece"
+    },
+    {
+     "pouch": 60,
+     "itemId": 37611,
+     "name": "Sanctuary Milk"
+    }
+   ],
+   "size": 1,
+   "rarity": 1,
+   "group": 1
+  },
+  {
+   "row": 2,
+   "bnpcBase": 14907,
+   "leavings": [
+    {
+     "pouch": 60,
+     "itemId": 37611,
+     "name": "Sanctuary Milk"
+    },
+    {
+     "pouch": 52,
+     "itemId": 37603,
+     "name": "Sanctuary Fleece"
+    }
+   ],
+   "size": 1,
+   "rarity": 2,
+   "group": 1
+  },
+  {
+   "row": 3,
+   "bnpcBase": 14908,
+   "leavings": [
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    },
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    }
+   ],
+   "size": 1,
+   "rarity": 1,
+   "group": 2
+  },
+  {
+   "row": 4,
+   "bnpcBase": 14909,
+   "leavings": [
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    },
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    }
+   ],
+   "size": 1,
+   "rarity": 2,
+   "group": 2
+  },
+  {
+   "row": 5,
+   "bnpcBase": 14910,
+   "leavings": [
+    {
+     "pouch": 52,
+     "itemId": 37603,
+     "name": "Sanctuary Fleece"
+    },
+    {
+     "pouch": 56,
+     "itemId": 37607,
+     "name": "Sanctuary Egg"
+    }
+   ],
+   "size": 1,
+   "rarity": 1,
+   "group": 3
+  },
+  {
+   "row": 6,
+   "bnpcBase": 14911,
+   "leavings": [
+    {
+     "pouch": 56,
+     "itemId": 37607,
+     "name": "Sanctuary Egg"
+    },
+    {
+     "pouch": 52,
+     "itemId": 37603,
+     "name": "Sanctuary Fleece"
+    }
+   ],
+   "size": 1,
+   "rarity": 2,
+   "group": 3
+  },
+  {
+   "row": 7,
+   "bnpcBase": 14912,
+   "leavings": [
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    },
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    }
+   ],
+   "size": 1,
+   "rarity": 1,
+   "group": 4
+  },
+  {
+   "row": 8,
+   "bnpcBase": 14913,
+   "leavings": [
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    },
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    }
+   ],
+   "size": 1,
+   "rarity": 2,
+   "group": 4
+  },
+  {
+   "row": 9,
+   "bnpcBase": 14914,
+   "leavings": [
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    },
+    {
+     "pouch": 57,
+     "itemId": 37608,
+     "name": "Sanctuary Carapace"
+    }
+   ],
+   "size": 1,
+   "rarity": 1,
+   "group": 5
+  },
+  {
+   "row": 10,
+   "bnpcBase": 14915,
+   "leavings": [
+    {
+     "pouch": 57,
+     "itemId": 37608,
+     "name": "Sanctuary Carapace"
+    },
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    }
+   ],
+   "size": 1,
+   "rarity": 2,
+   "group": 5
+  },
+  {
+   "row": 11,
+   "bnpcBase": 14916,
+   "leavings": [
+    {
+     "pouch": 56,
+     "itemId": 37607,
+     "name": "Sanctuary Egg"
+    },
+    {
+     "pouch": 55,
+     "itemId": 37606,
+     "name": "Sanctuary Feather"
+    }
+   ],
+   "size": 2,
+   "rarity": 1,
+   "group": 6
+  },
+  {
+   "row": 12,
+   "bnpcBase": 14917,
+   "leavings": [
+    {
+     "pouch": 55,
+     "itemId": 37606,
+     "name": "Sanctuary Feather"
+    },
+    {
+     "pouch": 56,
+     "itemId": 37607,
+     "name": "Sanctuary Egg"
+    }
+   ],
+   "size": 2,
+   "rarity": 2,
+   "group": 6
+  },
+  {
+   "row": 13,
+   "bnpcBase": 14918,
+   "leavings": [
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    },
+    {
+     "pouch": 60,
+     "itemId": 37611,
+     "name": "Sanctuary Milk"
+    }
+   ],
+   "size": 2,
+   "rarity": 1,
+   "group": 7
+  },
+  {
+   "row": 14,
+   "bnpcBase": 14919,
+   "leavings": [
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    },
+    {
+     "pouch": 59,
+     "itemId": 37610,
+     "name": "Sanctuary Horn"
+    }
+   ],
+   "size": 2,
+   "rarity": 2,
+   "group": 7
+  },
+  {
+   "row": 15,
+   "bnpcBase": 14920,
+   "leavings": [
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    },
+    {
+     "pouch": 55,
+     "itemId": 37606,
+     "name": "Sanctuary Feather"
+    }
+   ],
+   "size": 2,
+   "rarity": 1,
+   "group": 8
+  },
+  {
+   "row": 16,
+   "bnpcBase": 14921,
+   "leavings": [
+    {
+     "pouch": 55,
+     "itemId": 37606,
+     "name": "Sanctuary Feather"
+    },
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    }
+   ],
+   "size": 2,
+   "rarity": 2,
+   "group": 8
+  },
+  {
+   "row": 17,
+   "bnpcBase": 14922,
+   "leavings": [
+    {
+     "pouch": 57,
+     "itemId": 37608,
+     "name": "Sanctuary Carapace"
+    },
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    }
+   ],
+   "size": 2,
+   "rarity": 1,
+   "group": 9
+  },
+  {
+   "row": 18,
+   "bnpcBase": 14923,
+   "leavings": [
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    },
+    {
+     "pouch": 57,
+     "itemId": 37608,
+     "name": "Sanctuary Carapace"
+    }
+   ],
+   "size": 2,
+   "rarity": 2,
+   "group": 9
+  },
+  {
+   "row": 19,
+   "bnpcBase": 14924,
+   "leavings": [
+    {
+     "pouch": 60,
+     "itemId": 37611,
+     "name": "Sanctuary Milk"
+    },
+    {
+     "pouch": 59,
+     "itemId": 37610,
+     "name": "Sanctuary Horn"
+    }
+   ],
+   "size": 3,
+   "rarity": 1,
+   "group": 10
+  },
+  {
+   "row": 20,
+   "bnpcBase": 14925,
+   "leavings": [
+    {
+     "pouch": 59,
+     "itemId": 37610,
+     "name": "Sanctuary Horn"
+    },
+    {
+     "pouch": 60,
+     "itemId": 37611,
+     "name": "Sanctuary Milk"
+    }
+   ],
+   "size": 3,
+   "rarity": 2,
+   "group": 10
+  },
+  {
+   "row": 21,
+   "bnpcBase": 14926,
+   "leavings": [
+    {
+     "pouch": 60,
+     "itemId": 37611,
+     "name": "Sanctuary Milk"
+    },
+    {
+     "pouch": 59,
+     "itemId": 37610,
+     "name": "Sanctuary Horn"
+    }
+   ],
+   "size": 3,
+   "rarity": 1,
+   "group": 13
+  },
+  {
+   "row": 22,
+   "bnpcBase": 14927,
+   "leavings": [
+    {
+     "pouch": 59,
+     "itemId": 37610,
+     "name": "Sanctuary Horn"
+    },
+    {
+     "pouch": 52,
+     "itemId": 37603,
+     "name": "Sanctuary Fleece"
+    }
+   ],
+   "size": 3,
+   "rarity": 2,
+   "group": 13
+  },
+  {
+   "row": 23,
+   "bnpcBase": 14928,
+   "leavings": [
+    {
+     "pouch": 56,
+     "itemId": 37607,
+     "name": "Sanctuary Egg"
+    },
+    {
+     "pouch": 55,
+     "itemId": 37606,
+     "name": "Sanctuary Feather"
+    }
+   ],
+   "size": 3,
+   "rarity": 1,
+   "group": 11
+  },
+  {
+   "row": 24,
+   "bnpcBase": 14929,
+   "leavings": [
+    {
+     "pouch": 55,
+     "itemId": 37606,
+     "name": "Sanctuary Feather"
+    },
+    {
+     "pouch": 56,
+     "itemId": 37607,
+     "name": "Sanctuary Egg"
+    }
+   ],
+   "size": 3,
+   "rarity": 2,
+   "group": 11
+  },
+  {
+   "row": 25,
+   "bnpcBase": 14930,
+   "leavings": [
+    {
+     "pouch": 52,
+     "itemId": 37603,
+     "name": "Sanctuary Fleece"
+    },
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    }
+   ],
+   "size": 1,
+   "rarity": 3,
+   "group": 12
+  },
+  {
+   "row": 26,
+   "bnpcBase": 14931,
+   "leavings": [
+    {
+     "pouch": 57,
+     "itemId": 37608,
+     "name": "Sanctuary Carapace"
+    },
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    }
+   ],
+   "size": 1,
+   "rarity": 3,
+   "group": 14
+  },
+  {
+   "row": 27,
+   "bnpcBase": 14932,
+   "leavings": [
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    },
+    {
+     "pouch": 52,
+     "itemId": 37603,
+     "name": "Sanctuary Fleece"
+    }
+   ],
+   "size": 2,
+   "rarity": 3,
+   "group": 15
+  },
+  {
+   "row": 28,
+   "bnpcBase": 14933,
+   "leavings": [
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    },
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    }
+   ],
+   "size": 3,
+   "rarity": 3,
+   "group": 16
+  },
+  {
+   "row": 29,
+   "bnpcBase": 14934,
+   "leavings": [
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    },
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    }
+   ],
+   "size": 3,
+   "rarity": 3,
+   "group": 17
+  },
+  {
+   "row": 30,
+   "bnpcBase": 14935,
+   "leavings": [
+    {
+     "pouch": 55,
+     "itemId": 37606,
+     "name": "Sanctuary Feather"
+    },
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    }
+   ],
+   "size": 3,
+   "rarity": 3,
+   "group": 18
+  },
+  {
+   "row": 31,
+   "bnpcBase": 16068,
+   "leavings": [
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    },
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    }
+   ],
+   "size": 2,
+   "rarity": 3,
+   "group": 21
+  },
+  {
+   "row": 32,
+   "bnpcBase": 16069,
+   "leavings": [
+    {
+     "pouch": 57,
+     "itemId": 37608,
+     "name": "Sanctuary Carapace"
+    },
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    }
+   ],
+   "size": 1,
+   "rarity": 3,
+   "group": 22
+  },
+  {
+   "row": 33,
+   "bnpcBase": 14936,
+   "leavings": [
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    },
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    }
+   ],
+   "size": 1,
+   "rarity": 1,
+   "group": 19
+  },
+  {
+   "row": 34,
+   "bnpcBase": 14937,
+   "leavings": [
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    },
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    }
+   ],
+   "size": 1,
+   "rarity": 2,
+   "group": 19
+  },
+  {
+   "row": 35,
+   "bnpcBase": 14938,
+   "leavings": [
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    },
+    {
+     "pouch": 59,
+     "itemId": 37610,
+     "name": "Sanctuary Horn"
+    }
+   ],
+   "size": 3,
+   "rarity": 1,
+   "group": 20
+  },
+  {
+   "row": 36,
+   "bnpcBase": 14939,
+   "leavings": [
+    {
+     "pouch": 59,
+     "itemId": 37610,
+     "name": "Sanctuary Horn"
+    },
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    }
+   ],
+   "size": 3,
+   "rarity": 2,
+   "group": 20
+  },
+  {
+   "row": 37,
+   "bnpcBase": 14940,
+   "leavings": [
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    },
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    }
+   ],
+   "size": 3,
+   "rarity": 3,
+   "group": 19
+  },
+  {
+   "row": 38,
+   "bnpcBase": 16340,
+   "leavings": [
+    {
+     "pouch": 52,
+     "itemId": 37603,
+     "name": "Sanctuary Fleece"
+    },
+    {
+     "pouch": 54,
+     "itemId": 37605,
+     "name": "Sanctuary Fur"
+    }
+   ],
+   "size": 1,
+   "rarity": 3,
+   "group": 23
+  },
+  {
+   "row": 39,
+   "bnpcBase": 16341,
+   "leavings": [
+    {
+     "pouch": 55,
+     "itemId": 37606,
+     "name": "Sanctuary Feather"
+    },
+    {
+     "pouch": 56,
+     "itemId": 37607,
+     "name": "Sanctuary Egg"
+    }
+   ],
+   "size": 2,
+   "rarity": 3,
+   "group": 24
+  },
+  {
+   "row": 40,
+   "bnpcBase": 16628,
+   "leavings": [
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    },
+    {
+     "pouch": 57,
+     "itemId": 37608,
+     "name": "Sanctuary Carapace"
+    }
+   ],
+   "size": 3,
+   "rarity": 3,
+   "group": 22
+  },
+  {
+   "row": 41,
+   "bnpcBase": 16629,
+   "leavings": [
+    {
+     "pouch": 57,
+     "itemId": 37608,
+     "name": "Sanctuary Carapace"
+    },
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    }
+   ],
+   "size": 3,
+   "rarity": 3,
+   "group": 25
+  },
+  {
+   "row": 42,
+   "bnpcBase": 16630,
+   "leavings": [
+    {
+     "pouch": 53,
+     "itemId": 37604,
+     "name": "Sanctuary Claw"
+    },
+    {
+     "pouch": 59,
+     "itemId": 37610,
+     "name": "Sanctuary Horn"
+    }
+   ],
+   "size": 3,
+   "rarity": 3,
+   "group": 26
+  },
+  {
+   "row": 43,
+   "bnpcBase": 16631,
+   "leavings": [
+    {
+     "pouch": 58,
+     "itemId": 37609,
+     "name": "Sanctuary Fang"
+    },
+    {
+     "pouch": 57,
+     "itemId": 37608,
+     "name": "Sanctuary Carapace"
+    }
+   ],
+   "size": 3,
+   "rarity": 3,
+   "group": 5
+  }
+ ]
+}
