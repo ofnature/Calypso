@@ -1,0 +1,279 @@
+{
+ "source": "xivapi/ffxiv-datamining commit 44948e4cda5846eab0baa9872122a888fcc4f1b1, csv/en: MJICropSeed (Item = the produce), MJIItemPouch (row = pouch row; category 3 seed rows carry Crop = the MJICropSeed row; category 4 = produce), Item (Name; StackSize). Game data, facts only.",
+ "rankUnknown7": {
+  "row0": [
+   0,
+   5,
+   10,
+   20
+  ],
+  "row1": [
+   0,
+   5,
+   10,
+   20
+  ]
+ },
+ "crops": [
+  {
+   "crop": 1,
+   "seed": {
+    "pouch": 32,
+    "itemId": 37583,
+    "name": "Island Popoto Set"
+   },
+   "produce": {
+    "pouch": 42,
+    "itemId": 37593,
+    "name": "Island Popoto"
+   }
+  },
+  {
+   "crop": 2,
+   "seed": {
+    "pouch": 33,
+    "itemId": 37584,
+    "name": "Island Cabbage Seeds"
+   },
+   "produce": {
+    "pouch": 43,
+    "itemId": 37594,
+    "name": "Island Cabbage"
+   }
+  },
+  {
+   "crop": 3,
+   "seed": {
+    "pouch": 34,
+    "itemId": 37585,
+    "name": "Isleberry Seeds"
+   },
+   "produce": {
+    "pouch": 44,
+    "itemId": 37595,
+    "name": "Isleberry"
+   }
+  },
+  {
+   "crop": 4,
+   "seed": {
+    "pouch": 35,
+    "itemId": 37586,
+    "name": "Island Pumpkin Seeds"
+   },
+   "produce": {
+    "pouch": 45,
+    "itemId": 37596,
+    "name": "Island Pumpkin"
+   }
+  },
+  {
+   "crop": 5,
+   "seed": {
+    "pouch": 36,
+    "itemId": 37587,
+    "name": "Island Onion Set"
+   },
+   "produce": {
+    "pouch": 46,
+    "itemId": 37597,
+    "name": "Island Onion"
+   }
+  },
+  {
+   "crop": 6,
+   "seed": {
+    "pouch": 37,
+    "itemId": 37588,
+    "name": "Island Tomato Seeds"
+   },
+   "produce": {
+    "pouch": 47,
+    "itemId": 37598,
+    "name": "Island Tomato"
+   }
+  },
+  {
+   "crop": 7,
+   "seed": {
+    "pouch": 38,
+    "itemId": 37589,
+    "name": "Island Wheat Seeds"
+   },
+   "produce": {
+    "pouch": 48,
+    "itemId": 37599,
+    "name": "Island Wheat"
+   }
+  },
+  {
+   "crop": 8,
+   "seed": {
+    "pouch": 39,
+    "itemId": 37590,
+    "name": "Island Corn Seeds"
+   },
+   "produce": {
+    "pouch": 49,
+    "itemId": 37600,
+    "name": "Island Corn"
+   }
+  },
+  {
+   "crop": 9,
+   "seed": {
+    "pouch": 40,
+    "itemId": 37591,
+    "name": "Island Parsnip Seeds"
+   },
+   "produce": {
+    "pouch": 50,
+    "itemId": 37601,
+    "name": "Island Parsnip"
+   }
+  },
+  {
+   "crop": 10,
+   "seed": {
+    "pouch": 41,
+    "itemId": 37592,
+    "name": "Island Radish Seeds"
+   },
+   "produce": {
+    "pouch": 51,
+    "itemId": 37602,
+    "name": "Island Radish"
+   }
+  },
+  {
+   "crop": 11,
+   "seed": {
+    "pouch": 72,
+    "itemId": 39229,
+    "name": "Island Paprika Seeds"
+   },
+   "produce": {
+    "pouch": 74,
+    "itemId": 39231,
+    "name": "Island Paprika"
+   }
+  },
+  {
+   "crop": 12,
+   "seed": {
+    "pouch": 73,
+    "itemId": 39230,
+    "name": "Island Leek Set"
+   },
+   "produce": {
+    "pouch": 75,
+    "itemId": 39232,
+    "name": "Island Leek"
+   }
+  },
+  {
+   "crop": 13,
+   "seed": {
+    "pouch": 84,
+    "itemId": 39895,
+    "name": "Island Runner Bean Seeds"
+   },
+   "produce": {
+    "pouch": 88,
+    "itemId": 39899,
+    "name": "Island Runner Beans"
+   }
+  },
+  {
+   "crop": 14,
+   "seed": {
+    "pouch": 85,
+    "itemId": 39896,
+    "name": "Island Beet Seeds"
+   },
+   "produce": {
+    "pouch": 89,
+    "itemId": 39900,
+    "name": "Island Beet"
+   }
+  },
+  {
+   "crop": 15,
+   "seed": {
+    "pouch": 86,
+    "itemId": 39897,
+    "name": "Island Eggplant Seeds"
+   },
+   "produce": {
+    "pouch": 90,
+    "itemId": 39901,
+    "name": "Island Eggplant"
+   }
+  },
+  {
+   "crop": 16,
+   "seed": {
+    "pouch": 87,
+    "itemId": 39898,
+    "name": "Island Zucchini Seeds"
+   },
+   "produce": {
+    "pouch": 91,
+    "itemId": 39902,
+    "name": "Island Zucchini"
+   }
+  },
+  {
+   "crop": 17,
+   "seed": {
+    "pouch": 97,
+    "itemId": 41639,
+    "name": "Island Watermelon Seeds"
+   },
+   "produce": {
+    "pouch": 101,
+    "itemId": 41635,
+    "name": "Island Watermelon"
+   }
+  },
+  {
+   "crop": 18,
+   "seed": {
+    "pouch": 98,
+    "itemId": 41640,
+    "name": "Island Sweet Popoto Set"
+   },
+   "produce": {
+    "pouch": 102,
+    "itemId": 41636,
+    "name": "Island Sweet Popoto"
+   }
+  },
+  {
+   "crop": 19,
+   "seed": {
+    "pouch": 99,
+    "itemId": 41641,
+    "name": "Island Broccoli Seeds"
+   },
+   "produce": {
+    "pouch": 103,
+    "itemId": 41637,
+    "name": "Island Broccoli"
+   }
+  },
+  {
+   "crop": 20,
+   "seed": {
+    "pouch": 100,
+    "itemId": 41642,
+    "name": "Island Buffalo Bean Seeds"
+   },
+   "produce": {
+    "pouch": 104,
+    "itemId": 41638,
+    "name": "Island Buffalo Beans"
+   }
+  }
+ ]
+}
