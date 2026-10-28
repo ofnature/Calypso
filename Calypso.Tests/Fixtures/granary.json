@@ -1,0 +1,319 @@
+{
+ "source": "Game sheets dumped 2026-10-27 from the installed client: MJIStockyardManagementArea (rare pouch row, area index) and MJIStockyardManagementTable (subrows = normal resources). Names are Item.Name via MJIItemPouch; pouch = MJIItemPouch row.",
+ "areas": [
+  {
+   "area": 0,
+   "rare": {
+    "pouch": 27,
+    "name": "Island Alyssum"
+   },
+   "normal": [
+    {
+     "pouch": 1,
+     "name": "Island Apple"
+    },
+    {
+     "pouch": 3,
+     "name": "Island Stone"
+    },
+    {
+     "pouch": 7,
+     "name": "Islewort"
+    },
+    {
+     "pouch": 11,
+     "name": "Island Vine"
+    },
+    {
+     "pouch": 9,
+     "name": "Island Log"
+    },
+    {
+     "pouch": 17,
+     "name": "Island Cotton Boll"
+    },
+    {
+     "pouch": 32,
+     "name": "Island Popoto Set"
+    },
+    {
+     "pouch": 40,
+     "name": "Island Parsnip Seeds"
+    },
+    {
+     "pouch": 67,
+     "name": "Island Resin"
+    },
+    {
+     "pouch": 69,
+     "name": "Island Beehive Chip"
+    }
+   ]
+  },
+  {
+   "area": 1,
+   "rare": {
+    "pouch": 28,
+    "name": "Raw Island Garnet"
+   },
+   "normal": [
+    {
+     "pouch": 0,
+     "name": "Island Palm Leaf"
+    },
+    {
+     "pouch": 3,
+     "name": "Island Stone"
+    },
+    {
+     "pouch": 7,
+     "name": "Islewort"
+    },
+    {
+     "pouch": 8,
+     "name": "Island Sand"
+    },
+    {
+     "pouch": 10,
+     "name": "Island Palm Log"
+    },
+    {
+     "pouch": 16,
+     "name": "Island Sugarcane"
+    },
+    {
+     "pouch": 19,
+     "name": "Island Clay"
+    },
+    {
+     "pouch": 20,
+     "name": "Island Tinsand"
+    },
+    {
+     "pouch": 68,
+     "name": "Island Coconut"
+    }
+   ]
+  },
+  {
+   "area": 2,
+   "rare": {
+    "pouch": 29,
+    "name": "Island Spruce Log"
+   },
+   "normal": [
+    {
+     "pouch": 2,
+     "name": "Island Branch"
+    },
+    {
+     "pouch": 35,
+     "name": "Island Pumpkin Seeds"
+    },
+    {
+     "pouch": 33,
+     "name": "Island Cabbage Seeds"
+    },
+    {
+     "pouch": 7,
+     "name": "Islewort"
+    },
+    {
+     "pouch": 12,
+     "name": "Island Sap"
+    },
+    {
+     "pouch": 11,
+     "name": "Island Vine"
+    },
+    {
+     "pouch": 1,
+     "name": "Island Apple"
+    },
+    {
+     "pouch": 9,
+     "name": "Island Log"
+    },
+    {
+     "pouch": 18,
+     "name": "Island Hemp"
+    },
+    {
+     "pouch": 67,
+     "name": "Island Resin"
+    },
+    {
+     "pouch": 69,
+     "name": "Island Beehive Chip"
+    },
+    {
+     "pouch": 70,
+     "name": "Island Wood Opal"
+    }
+   ]
+  },
+  {
+   "area": 3,
+   "rare": {
+    "pouch": 30,
+    "name": "Island Hammerhead"
+   },
+   "normal": [
+    {
+     "pouch": 0,
+     "name": "Island Palm Leaf"
+    },
+    {
+     "pouch": 8,
+     "name": "Island Sand"
+    },
+    {
+     "pouch": 4,
+     "name": "Island Clam"
+    },
+    {
+     "pouch": 5,
+     "name": "Island Laver"
+    },
+    {
+     "pouch": 6,
+     "name": "Island Coral"
+    },
+    {
+     "pouch": 10,
+     "name": "Island Palm Log"
+    },
+    {
+     "pouch": 15,
+     "name": "Island Rock Salt"
+    },
+    {
+     "pouch": 24,
+     "name": "Islefish"
+    },
+    {
+     "pouch": 25,
+     "name": "Island Squid"
+    },
+    {
+     "pouch": 26,
+     "name": "Island Jellyfish"
+    },
+    {
+     "pouch": 68,
+     "name": "Island Coconut"
+    }
+   ]
+  },
+  {
+   "area": 4,
+   "rare": {
+    "pouch": 31,
+    "name": "Island Silver Ore"
+   },
+   "normal": [
+    {
+     "pouch": 2,
+     "name": "Island Branch"
+    },
+    {
+     "pouch": 3,
+     "name": "Island Stone"
+    },
+    {
+     "pouch": 8,
+     "name": "Island Sand"
+    },
+    {
+     "pouch": 13,
+     "name": "Island Copper Ore"
+    },
+    {
+     "pouch": 14,
+     "name": "Island Limestone"
+    },
+    {
+     "pouch": 21,
+     "name": "Island Iron Ore"
+    },
+    {
+     "pouch": 22,
+     "name": "Island Quartz"
+    },
+    {
+     "pouch": 23,
+     "name": "Island Leucogranite"
+    },
+    {
+     "pouch": 71,
+     "name": "Multicolored Isleblooms"
+    },
+    {
+     "pouch": 79,
+     "name": "Island Marble"
+    },
+    {
+     "pouch": 80,
+     "name": "Island Mythril Ore"
+    },
+    {
+     "pouch": 92,
+     "name": "Island Durium Sand"
+    }
+   ]
+  },
+  {
+   "area": 5,
+   "rare": {
+    "pouch": 83,
+    "name": "Island Cave Shrimp"
+   },
+   "normal": [
+    {
+     "pouch": 3,
+     "name": "Island Stone"
+    },
+    {
+     "pouch": 8,
+     "name": "Island Sand"
+    },
+    {
+     "pouch": 76,
+     "name": "Island Coal"
+    },
+    {
+     "pouch": 77,
+     "name": "Island Shale"
+    },
+    {
+     "pouch": 78,
+     "name": "Island Glimshroom"
+    },
+    {
+     "pouch": 81,
+     "name": "Island Effervescent Water"
+    },
+    {
+     "pouch": 82,
+     "name": "Island Spectrine"
+    },
+    {
+     "pouch": 93,
+     "name": "Island Yellow Copper Ore"
+    },
+    {
+     "pouch": 94,
+     "name": "Island Gold Ore"
+    },
+    {
+     "pouch": 95,
+     "name": "Island Hawk's Eye Sand"
+    },
+    {
+     "pouch": 96,
+     "name": "Island Crystal Formation"
+    }
+   ]
+  }
+ ]
+}
