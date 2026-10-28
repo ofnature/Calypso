@@ -35,6 +35,14 @@ that carries your own production (supply), groove, materials, rest days and favo
 shows the plan; in **Auto** the daily loop also sets tomorrow's agenda. **Rank progress** keeps the materials for
 every construction your rank allows out of the plan. Paste a community schedule to compare it under the same model.
 
+## Granary
+
+The granary planner (logic only so far; the in-game part comes next) decides each day, for both granaries, whether to
+collect and where to send the next expedition for how long. It feeds the workshop first: the granary rares this week's
+and next week's plans would use if they had them, then construction costs set aside in rank mode, then gatherables
+that are slow to gather, and finally a small stock of every rare. Expeditions run the full 7 days unless the cowries
+run short; a collection that would overflow the 999 pouch cap is flagged with exactly what would be lost.
+
 ## Credits
 
 - Supply/demand peak pattern table: [WorkshopOptimizerPlugin](https://github.com/belzaru17/WorkshopOptimizerPlugin)
@@ -43,6 +51,11 @@ every construction your rank allows out of the plan. Paste a community schedule 
 - In-game value measurements and a worked four-workshop day from
   [mji-craftwork](https://github.com/ffxiv-cyou/ffxiv-island-sanctuary-craftwork) by Jim Jiang, Apache-2.0 licence
   (numbers only, used as test cases; no code used).
+- Granary mechanics (50 cowries a day, 7 days at most, 2-6 rares a day by granary level, 0-24 of each normal
+  resource, payout at the daily reset) as published by the Console Games Wiki and Icy Veins (facts only). Expedition
+  area names from the game's MJIText sheet via [ffxiv-datamining](https://github.com/xivapi/ffxiv-datamining) (game
+  data, facts only). Extension pricing and mid-expedition collection cross-checked against
+  [visland](https://github.com/awgil/ffxiv_visland) by awgil (no licence: facts only, no code used).
 - Game structures: [FFXIVClientStructs](https://github.com/aers/FFXIVClientStructs); game data via Lumina.
 
 ## Building
