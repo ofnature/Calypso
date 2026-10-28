@@ -52,6 +52,35 @@ public static class SupplyMath
         return (supplyRatio[b] * (ItemsPerBucket - produced) + supplyRatio[b + 1] * (double)produced) / ItemsPerBucket;
     }
 
+    /// <summary>
+    /// The same model as <see cref="ExpectedRatio"/>, as a distribution: adds <paramref name="weight"/> to
+    /// <paramref name="into"/> (indexed by bucket) split between the buckets the item may be in after
+    /// <paramref name="produced"/> more. The game truncates each sale, so a value has to be averaged over these buckets;
+    /// truncating the value at the averaged ratio would be wrong.
+    /// </summary>
+    public static void AddBucketWeights(Span<double> into, Supply bucket, int produced, double weight)
+    {
+        var b = (int)bucket;
+        var last = into.Length - 1;
+        if (produced < 0)
+            produced = 0;
+
+        while (produced >= ItemsPerBucket && b < last)
+        {
+            b++;
+            produced -= ItemsPerBucket;
+        }
+
+        if (b >= last)
+        {
+            into[last] += weight;
+            return;
+        }
+
+        into[b] += weight * (ItemsPerBucket - produced) / ItemsPerBucket;
+        into[b + 1] += weight * produced / ItemsPerBucket;
+    }
+
     /// <summary>MJIManager.SupplyAndDemandShifts byte: supply in the high nibble, demand shift in the low nibble.</summary>
     public static (Supply Supply, DemandShift Demand) Unpack(byte packed) =>
         ((Supply)Math.Min(packed >> 4, 4), (DemandShift)Math.Min(packed & 0xF, 4));

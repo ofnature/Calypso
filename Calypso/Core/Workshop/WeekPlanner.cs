@@ -11,8 +11,13 @@ public sealed record FavorRequirement(int CraftId, int Required);
 
 public sealed record PlannerLimits
 {
-    /// <summary>Chains kept per day before any state is looked at, ranked by a single-workshop optimistic value.</summary>
-    public int ChainsPerDay { get; init; } = 150;
+    /// <summary>
+    /// Chains kept per day before any state is looked at, ranked by a single-workshop optimistic value. 4000 (was 150):
+    /// that additive ranking misses chains that pay off through groove and same-day supply, and each state re-ranks the
+    /// pool exactly. Measured 2026-10-27 on 20 seeded weeks: +1.8% cowries, ~0.35 s a week warm, ~0.9 s cold
+    /// (PlanQualityTests).
+    /// </summary>
+    public int ChainsPerDay { get; init; } = 4000;
 
     /// <summary>Of those, the best chains for one search state that are paired up into whole-day assignments.</summary>
     public int ChainsPerState { get; init; } = 10;
@@ -90,6 +95,9 @@ public static class WeekPlanner
 {
     private const int Days = 7;
 
+    /// <summary>Gatherable-only chains added to each day's candidates (see <see cref="PreselectChains"/>).</summary>
+    private const int SafeChainsPerDay = 10;
+
     /// <summary>Score per favor item still owed — large enough that the beam keeps favor-filling paths alive.</summary>
     private const double FavorWeight = 1000;
 
@@ -150,6 +158,9 @@ public static class WeekPlanner
             if (beam.Count == 0)
                 break;
         }
+
+        if (beam.Count == 0)
+            warnings.Add("No workable plan: every option overdraws a hard-capped material.");
 
         var finals = beam.Where(s => s.RestsTaken == input.RestDaysPerWeek || input.FirstDay >= Days).ToList();
         if (finals.Count == 0)
@@ -221,13 +232,44 @@ public static class WeekPlanner
             return evaluator.Evaluate(day, new[] { chain }, new[] { topTier }, state.Groove, state.Produced, scratch).Value;
         }
 
-        // Rank the day's chains for THIS state (its own production changes what sells), single workshop.
-        var ranked = dayChains
+        var n = workshops.Count;
+
+        // Hard-capped materials one more chain would need, run in `count` workshops, against what this state has left
+        // (the same accounting as State.Work).
+        bool Fits(int[] chain, int count)
+        {
+            var need = new Dictionary<int, int>();
+            CraftDef? previous = null;
+            foreach (var id in chain)
+            {
+                var craft = catalog.Get(id)!;
+                var units = input.MaterialsPerItem && previous != null && craft.ChainsAfter(previous) ? 2 : 1;
+                foreach (var m in craft.Materials)
+                {
+                    if (catalog.KindOf(m.PouchRow) != MaterialKind.Gatherable)
+                        need[m.PouchRow] = need.GetValueOrDefault(m.PouchRow) + m.Amount * units;
+                }
+
+                previous = craft;
+            }
+
+            return need.All(kv => (kv.Key < state.MaterialsUsed.Length ? state.MaterialsUsed[kv.Key] : 0) + count * kv.Value
+                                  <= input.Materials.GetValueOrDefault(kv.Key));
+        }
+
+        // Rank the day's chains for THIS state (its own production changes what sells), single workshop. A chain no
+        // workshop could run on what is left is no candidate: cutting to the best few first let scarce produce or rares
+        // fill every seat, every work day overdrew, and the plan came back empty.
+        var byValue = dayChains
             .Select(chain => (chain, v: Solo(chain)))
             .OrderByDescending(x => x.v)
-            .Take(limits.ChainsPerState)
             .Select(x => x.chain)
             .ToList();
+        var ranked = byValue.Where(chain => Fits(chain, 1)).Take(limits.ChainsPerState).ToList();
+
+        // And keep one chain every workshop can run, so a work day always has an assignment.
+        if (!ranked.Any(chain => Fits(chain, n)) && byValue.FirstOrDefault(chain => Fits(chain, n)) is { } safe)
+            ranked.Add(safe);
 
         // A favor this state still owes always gets its two best chains a seat, or the value cut would drop them.
         foreach (var f in input.Favors)
@@ -241,7 +283,6 @@ public static class WeekPlanner
             }
         }
 
-        var n = workshops.Count;
         foreach (var a in ranked)
         {
             if (Assign(a, null) is { } solo)
@@ -287,6 +328,10 @@ public static class WeekPlanner
         }
 
         var chains = ChainGenerator.TopChains(catalog, allowed, Weight, keep);
+
+        // Chains of gatherable-only crafts never hit a hard cap, so every day keeps a few any state can run.
+        var safe = ChainGenerator.TopChains(catalog, c => allowed(c) && c.Materials.All(m => catalog.KindOf(m.PouchRow) == MaterialKind.Gatherable), Weight, SafeChainsPerDay);
+        chains.AddRange(safe.Where(c => !chains.Any(x => x.SequenceEqual(c))));
         var favorChains = new Dictionary<int, List<int[]>>();
         foreach (var f in input.Favors)
         {

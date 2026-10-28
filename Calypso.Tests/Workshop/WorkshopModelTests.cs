@@ -42,6 +42,22 @@ public class WorkshopModelTests
     }
 
     [Fact]
+    public void BucketWeightsAverageToTheExpectedRatio()
+    {
+        // The evaluator averages truncated sales over these weights; their mean ratio must be the same model.
+        for (var bucket = Supply.Nonexistent; bucket <= Supply.Overflowing; bucket++)
+        {
+            for (var produced = 0; produced <= 40; produced++)
+            {
+                var w = new double[5];
+                SupplyMath.AddBucketWeights(w, bucket, produced, 1.0);
+                Assert.Equal(1.0, w.Sum(), 9);
+                Assert.Equal(SupplyMath.ExpectedRatio(SupplyRatio, bucket, produced), w.Select((p, b) => p * SupplyRatio[b]).Sum(), 9);
+            }
+        }
+    }
+
+    [Fact]
     public void PackedSupplyAndDemandUnpack()
     {
         Assert.Equal((Supply.Insufficient, DemandShift.Plummeting), SupplyMath.Unpack(0x14));
@@ -53,8 +69,12 @@ public class WorkshopModelTests
         var seen = new (Supply, DemandShift)?[7];
         Assert.Equal(12, PeakPatterns.Consistent(seen, _ => false).Count);
 
-        // Day 1 Insufficient + Skyrocketing: only the strong C2 pattern fits (Ins/Non + Sky/Sky on days 0-1).
+        // Day 1 Insufficient: a cycle-2 peak. Skyrocketing alone can't tell its strength (it depends on last week)...
         seen[0] = (Supply.Insufficient, DemandShift.Skyrocketing);
+        Assert.Equal(new[] { "C2W", "C2S" }, PeakPatterns.Consistent(seen, _ => false).Select(p => p.Name));
+
+        // ...day 2 Nonexistent + Skyrocketing can: only the strong one.
+        seen[1] = (Supply.Nonexistent, DemandShift.Skyrocketing);
         var left = PeakPatterns.Consistent(seen, _ => false);
         Assert.Equal(new[] { "C2S" }, left.Select(p => p.Name));
     }

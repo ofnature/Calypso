@@ -40,6 +40,9 @@ every construction your rank allows out of the plan. Paste a community schedule 
 - Supply/demand peak pattern table: [WorkshopOptimizerPlugin](https://github.com/belzaru17/WorkshopOptimizerPlugin)
   by belzaru17, MIT licence (notice kept in `Calypso/Core/Workshop/PeakPatterns.cs`).
 - Workshop value formula and supply model as published by the Overseas Casuals community (facts only; no code used).
+- In-game value measurements and a worked four-workshop day from
+  [mji-craftwork](https://github.com/ffxiv-cyou/ffxiv-island-sanctuary-craftwork) by Jim Jiang, Apache-2.0 licence
+  (numbers only, used as test cases; no code used).
 - Game structures: [FFXIVClientStructs](https://github.com/aers/FFXIVClientStructs); game data via Lumina.
 
 ## Building

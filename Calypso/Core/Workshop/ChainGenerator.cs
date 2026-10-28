@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace Calypso.Core.Workshop;
 
@@ -47,6 +48,7 @@ public static class ChainGenerator
         result.Reverse();
         return result.Select(r => r.Chain).ToList();
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)] // hot recursion; see DayEvaluator.Evaluate
         void Search(int hours, double score)
         {
             if (heap.Count >= keep && heap.TryPeek(out _, out var worst) && score + 2 * bestRate * (HoursPerCycle - hours) <= worst)
